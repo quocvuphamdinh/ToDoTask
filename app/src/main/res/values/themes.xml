@@ -2,4 +2,9 @@
 <resources>
 
     <style name="Theme.ToDoTaskApp" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <style name="DatePickerTheme" parent="android:Theme.Material.Light.Dialog">
+        <item name="android:colorAccent">@color/primaryColor</item>
+        <item name="android:colorPrimary">@color/backgroundColor</item>
+    </style>
 </resources>
