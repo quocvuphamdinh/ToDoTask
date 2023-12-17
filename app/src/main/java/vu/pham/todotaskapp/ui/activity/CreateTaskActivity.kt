@@ -1,11 +1,14 @@
 package vu.pham.todotaskapp.ui.activity
 
 import android.app.Activity
+import android.content.Context
 import android.icu.util.Calendar
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalOverscrollConfiguration
 import androidx.compose.foundation.background
@@ -37,6 +40,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,10 +49,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import vu.pham.todotaskapp.ToDoApplication
+import vu.pham.todotaskapp.models.Task
 import vu.pham.todotaskapp.ui.theme.BackgroundColor
+import vu.pham.todotaskapp.ui.theme.BlackColor
 import vu.pham.todotaskapp.ui.theme.BlackLight
 import vu.pham.todotaskapp.ui.theme.GreenLight
 import vu.pham.todotaskapp.ui.theme.GreyLight
@@ -57,20 +67,59 @@ import vu.pham.todotaskapp.ui.theme.TextColor
 import vu.pham.todotaskapp.ui.theme.ToDoTaskAppTheme
 import vu.pham.todotaskapp.ui.theme.WhiteColor
 import vu.pham.todotaskapp.ui.theme.WhiteColor2
+import vu.pham.todotaskapp.ui.utils.LoadingDialog
 import vu.pham.todotaskapp.ui.utils.ToDoButton
 import vu.pham.todotaskapp.ui.utils.ToDoCheckBox
 import vu.pham.todotaskapp.ui.utils.ToDoDatePicker
 import vu.pham.todotaskapp.ui.utils.ToDoTextField
 import vu.pham.todotaskapp.ui.utils.timerPickerDialog
+import vu.pham.todotaskapp.utils.AppState
+import vu.pham.todotaskapp.utils.Constants
 import vu.pham.todotaskapp.utils.DateUtils
+import vu.pham.todotaskapp.viewmodels.CreateTaskViewModel
+import vu.pham.todotaskapp.viewmodels.viewmodelfactory.viewModelFactory
 import kotlin.time.Duration
 
 class CreateTaskActivity : ComponentActivity() {
+    private val createTaskViewModel by viewModels<CreateTaskViewModel>(
+        factoryProducer = {
+            viewModelFactory {
+                CreateTaskViewModel((application as ToDoApplication).taskRepository)
+            }
+        }
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             ToDoTaskAppTheme {
-                CreateTask()
+                val context = LocalContext.current
+                val activity = (context as? Activity)
+
+                LaunchedEffect(Unit) {
+                    createTaskViewModel
+                        .message
+                        .collect { message ->
+                            Toast.makeText(
+                                context,
+                                message,
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                        }
+                }
+
+                val createTaskState =
+                    createTaskViewModel.isCreateTaskSuccess.collectAsStateWithLifecycle(AppState.Idle)
+                when (createTaskState.value) {
+                    AppState.Idle -> {}
+                    AppState.Loading -> LoadingDialog(isShow = true)
+                    AppState.Success -> {
+                        LoadingDialog(isShow = false)
+                        activity?.finish()
+                    }
+                    AppState.Error -> LoadingDialog(isShow = false)
+                }
+                CreateTask(createTaskViewModel, context, activity)
             }
         }
     }
@@ -78,9 +127,35 @@ class CreateTaskActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun CreateTask() {
-    val context = LocalContext.current
-    val activity = (context as? Activity)
+fun CreateTask(
+    viewModel: CreateTaskViewModel,
+    context: Context,
+    activity: Activity?
+) {
+    var taskDate by remember {
+        mutableStateOf(System.currentTimeMillis())
+    }
+    var name by remember {
+        mutableStateOf("")
+    }
+    var description by remember {
+        mutableStateOf("")
+    }
+    var isDailyTask by remember {
+        mutableStateOf(false)
+    }
+    var startTime by remember {
+        mutableStateOf(Calendar.getInstance())
+    }
+    var endTime by remember {
+        mutableStateOf(Calendar.getInstance())
+    }
+    var priority by remember {
+        mutableStateOf(0)
+    }
+    var isSwitchOn by remember {
+        mutableStateOf(false)
+    }
     Scaffold(
         modifier = Modifier
             .fillMaxSize(),
@@ -114,7 +189,7 @@ fun CreateTask() {
                 ToDoDatePicker(
                     modifier = Modifier.padding(bottom = 20.dp),
                     onDateSelected = { dateSelected ->
-
+                        taskDate = dateSelected.time
                     })
                 Text(
                     text = "Schedule", fontSize = 20.sp, color = TextColor, modifier =
@@ -127,13 +202,13 @@ fun CreateTask() {
                     hintText = "Name",
                     leadingIcon = null,
                     onTextChanged = {
-
+                        name = it
+                        Log.d("hivu", "$name - $it")
                     },
                     isLongText = false,
                     enabled = true,
                     value = null
                 )
-
                 ToDoTextField(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -141,7 +216,7 @@ fun CreateTask() {
                     hintText = "Description",
                     leadingIcon = null,
                     onTextChanged = {
-
+                        description = it
                     },
                     isLongText = true,
                     enabled = true,
@@ -156,9 +231,6 @@ fun CreateTask() {
                             .weight(10f, true)
                             .padding(bottom = 10.dp),
                     ) {
-                        var startTime by remember {
-                            mutableStateOf(Calendar.getInstance())
-                        }
                         Text(
                             text = "Start Time", fontSize = 20.sp, color = TextColor, modifier =
                             Modifier.padding(bottom = 10.dp)
@@ -200,9 +272,6 @@ fun CreateTask() {
                             .weight(10f, true)
                             .padding(bottom = 10.dp),
                     ) {
-                        var endTime by remember {
-                            mutableStateOf(Calendar.getInstance())
-                        }
                         Text(
                             text = "End Time", fontSize = 20.sp, color = TextColor, modifier =
                             Modifier.padding(bottom = 10.dp)
@@ -255,15 +324,21 @@ fun CreateTask() {
                                 color = OrangeLight,
                                 shape = RoundedCornerShape(5.dp)
                             )
-                            .wrapContentSize()
                             .weight(10f, true)
+                            .clickable {
+                                priority = Constants.HIGH_PRIORITY
+                            }
                     ) {
                         Text(
+                            textAlign = TextAlign.Center,
                             text = "High",
                             fontSize = 16.sp,
-                            color = TextColor,
+                            color = if (priority == Constants.HIGH_PRIORITY) BlackColor else TextColor,
                             modifier = Modifier
-                                .background(BackgroundColor)
+                                .background(
+                                    if (priority == Constants.HIGH_PRIORITY) OrangeLight else BackgroundColor,
+                                    shape = RoundedCornerShape(5.dp)
+                                )
                                 .padding(vertical = 10.dp)
                         )
                     }
@@ -275,15 +350,21 @@ fun CreateTask() {
                                 color = GreenLight,
                                 shape = RoundedCornerShape(5.dp)
                             )
-                            .wrapContentSize()
                             .weight(10f, true)
+                            .clickable {
+                                priority = Constants.MEDIUM_PRIORITY
+                            }
                     ) {
                         Text(
+                            textAlign = TextAlign.Center,
                             text = "Medium",
                             fontSize = 16.sp,
-                            color = TextColor,
+                            color = if (priority == Constants.MEDIUM_PRIORITY) BlackColor else TextColor,
                             modifier = Modifier
-                                .background(BackgroundColor)
+                                .background(
+                                    if (priority == Constants.MEDIUM_PRIORITY) GreenLight else BackgroundColor,
+                                    shape = RoundedCornerShape(5.dp)
+                                )
                                 .padding(vertical = 10.dp)
                         )
                     }
@@ -295,15 +376,21 @@ fun CreateTask() {
                                 color = GreyLight,
                                 shape = RoundedCornerShape(5.dp)
                             )
-                            .wrapContentSize()
                             .weight(10f, true)
+                            .clickable {
+                                priority = Constants.LOW_PRIORITY
+                            }
                     ) {
                         Text(
+                            textAlign = TextAlign.Center,
                             text = "Low",
                             fontSize = 16.sp,
-                            color = TextColor,
+                            color = if (priority == Constants.LOW_PRIORITY) BlackColor else TextColor,
                             modifier = Modifier
-                                .background(BackgroundColor)
+                                .background(
+                                    if (priority == Constants.LOW_PRIORITY) GreyLight else BackgroundColor,
+                                    shape = RoundedCornerShape(5.dp)
+                                )
                                 .padding(vertical = 10.dp)
                         )
                     }
@@ -312,12 +399,9 @@ fun CreateTask() {
                     modifier = Modifier,
                     textCheckBox = "Daily Task",
                     onCheckedChange = { isChecked ->
-
+                        isDailyTask = isChecked
                     }
                 )
-                var isSwitchOn by remember {
-                    mutableStateOf(false)
-                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -344,6 +428,21 @@ fun CreateTask() {
                     textColor = TextColor,
                     onClick = {
 
+                        val task = Task(
+                            id = null,
+                            name = name,
+                            description = description,
+                            createdDate = System.currentTimeMillis(),
+                            modifiedDate = null,
+                            taskDate = taskDate,
+                            startTime = startTime.timeInMillis,
+                            endTime = endTime.timeInMillis,
+                            priority = priority,
+                            isDailyTask = if (isDailyTask) 1 else 0,
+                            isAlert = if (isSwitchOn) 1 else 0,
+                            isCompleted = 0
+                        )
+                        viewModel.createTask(task)
                     }
                 )
             }
@@ -356,6 +455,6 @@ fun CreateTask() {
 @Composable
 fun CreatTaskPreview() {
     ToDoTaskAppTheme {
-        CreateTask()
+        //CreateTask()
     }
 }

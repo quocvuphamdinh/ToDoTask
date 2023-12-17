@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalOverscrollConfiguration
@@ -14,12 +15,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
@@ -36,6 +35,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -48,9 +50,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import vu.pham.todotaskapp.R
+import vu.pham.todotaskapp.ToDoApplication
+import vu.pham.todotaskapp.models.Task
 import vu.pham.todotaskapp.ui.theme.BackgroundColor
 import vu.pham.todotaskapp.ui.theme.BlackLight
+import vu.pham.todotaskapp.ui.theme.GreenLight
+import vu.pham.todotaskapp.ui.theme.GreyLight
 import vu.pham.todotaskapp.ui.theme.OrangeLight
 import vu.pham.todotaskapp.ui.theme.PrimaryColor
 import vu.pham.todotaskapp.ui.theme.TextColor
@@ -61,14 +69,27 @@ import vu.pham.todotaskapp.ui.theme.WhiteColor3
 import vu.pham.todotaskapp.ui.utils.ToDoFAB
 import vu.pham.todotaskapp.ui.utils.ToDoProgressBar
 import vu.pham.todotaskapp.ui.utils.ToDoTextField
+import vu.pham.todotaskapp.utils.Constants
+import vu.pham.todotaskapp.utils.DateUtils
 import vu.pham.todotaskapp.utils.width
+import vu.pham.todotaskapp.viewmodels.HomeViewModel
+import vu.pham.todotaskapp.viewmodels.viewmodelfactory.viewModelFactory
+import java.util.Date
 
 class MainActivity : ComponentActivity() {
+    private val homeViewModel by viewModels<HomeViewModel>(
+        factoryProducer = {
+            viewModelFactory {
+                HomeViewModel((application as ToDoApplication).taskRepository)
+            }
+        }
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             ToDoTaskAppTheme {
-                MainPage()
+                MainPage(homeViewModel)
             }
         }
     }
@@ -77,8 +98,24 @@ class MainActivity : ComponentActivity() {
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun MainPage() {
+fun MainPage(
+    homeViewModel: HomeViewModel
+) {
     val context = LocalContext.current
+    val todayTasks =
+        homeViewModel.getTodayTasks(3).collectAsStateWithLifecycle(initialValue = emptyList())
+    val totalTodayTasksNotCompleted =
+        homeViewModel.getTotalTodayTasksCompletedOrNotCompleted(false).collectAsStateWithLifecycle(
+            initialValue = 0
+        )
+    val totalDailyTasksNotCompleted =
+        homeViewModel.getTotalDailyTasksCompletedOrNotCompleted(false).collectAsStateWithLifecycle(
+            initialValue = 0
+        )
+    val totalDailyTasksCompleted =
+        homeViewModel.getTotalDailyTasksCompletedOrNotCompleted(true).collectAsStateWithLifecycle(
+            initialValue = 0
+        )
     Scaffold(
         floatingActionButton = {
             ToDoFAB {
@@ -105,16 +142,17 @@ fun MainPage() {
                                 .fillMaxWidth()
                                 .padding(bottom = 10.dp)
                         ) {
-                            TextTitle()
+                            TextTitle(totalTodayTasksNotCompleted.value)
                             Image(
                                 painterResource(id = R.drawable.ic_to_do_list),
                                 contentDescription = null,
                                 modifier = Modifier.size(50.dp)
                             )
                         }
-                        ToDoTextField(modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 20.dp),
+                        ToDoTextField(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 20.dp),
                             hintText = "Search Task Here", leadingIcon = {
                                 Icon(
                                     Icons.Outlined.Search, contentDescription = null,
@@ -126,7 +164,8 @@ fun MainPage() {
                             },
                             isLongText = false,
                             enabled = true,
-                            value = null)
+                            value = null
+                        )
                         Row(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
@@ -155,11 +194,14 @@ fun MainPage() {
                                     modifier = Modifier.padding(bottom = 6.dp)
                                 )
                                 Text(
-                                    text = "2/3 Task Completed",
+                                    text = "${totalDailyTasksCompleted.value}/${totalDailyTasksCompleted.value + totalDailyTasksNotCompleted.value} Task Completed",
                                     color = WhiteColor2,
                                     fontSize = 14.sp,
                                     modifier = Modifier.padding(bottom = 6.dp)
                                 )
+                                val progress =
+                                    if ((totalDailyTasksCompleted.value + totalDailyTasksNotCompleted.value) != 0) (totalDailyTasksCompleted.value / (totalDailyTasksCompleted.value + totalDailyTasksNotCompleted.value)) * 100
+                                    else 0
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween
@@ -170,10 +212,10 @@ fun MainPage() {
                                         fontSize = 12.sp
                                     )
                                     Text(
-                                        text = "50%", color = TextColor, fontSize = 16.sp,
+                                        text = "${progress}%", color = TextColor, fontSize = 16.sp,
                                     )
                                 }
-                                ToDoProgressBar(50)
+                                ToDoProgressBar(progress)
                             }
                         }
                         Row(
@@ -187,8 +229,8 @@ fun MainPage() {
                             Text(text = "See All", fontSize = 16.sp, color = PrimaryColor)
                         }
                         Column {
-                            repeat(3) { i ->
-                                TaskItem(i)
+                            repeat(todayTasks.value.size) { i ->
+                                TaskItem(todayTasks.value[i])
                             }
                         }
                         Row(
@@ -202,8 +244,8 @@ fun MainPage() {
                             Text(text = "See All", fontSize = 16.sp, color = PrimaryColor)
                         }
                         Column {
-                            repeat(3) { i ->
-                                TaskItem(i)
+                            repeat(todayTasks.value.size) { i ->
+                                TaskItem(todayTasks.value[i])
                             }
                         }
                     }
@@ -215,7 +257,7 @@ fun MainPage() {
 }
 
 @Composable
-fun TaskItem(index: Int) {
+fun TaskItem(task: Task) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -227,7 +269,11 @@ fun TaskItem(index: Int) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .background(OrangeLight)
+                .background(
+                    if (task.priority == Constants.HIGH_PRIORITY) OrangeLight
+                    else if (task.priority == Constants.MEDIUM_PRIORITY) GreenLight
+                    else GreyLight
+                )
         ) {
             Row(
                 modifier = Modifier
@@ -243,7 +289,7 @@ fun TaskItem(index: Int) {
                     verticalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        text = "Mobile App Research",
+                        text = task.name,
                         fontSize = 16.sp,
                         color = TextColor
                     )
@@ -254,11 +300,15 @@ fun TaskItem(index: Int) {
                             tint = WhiteColor2,
                             modifier = Modifier.padding(end = 5.dp)
                         )
-                        Text(text = "4 Oct", fontSize = 12.sp, color = WhiteColor2)
+                        Text(
+                            text = DateUtils.convertDateFormat(Date(task.taskDate), "dd MMMM"),
+                            fontSize = 12.sp,
+                            color = WhiteColor2
+                        )
                     }
                 }
                 Image(
-                    painterResource(id = if (index % 2 == 0) R.drawable.ic_completed else R.drawable.ic_not_completed),
+                    painterResource(id = if (task.isCompleted == 1) R.drawable.ic_completed else R.drawable.ic_not_completed),
                     contentDescription = null,
                     modifier = Modifier.size(20.dp)
                 )
@@ -268,7 +318,7 @@ fun TaskItem(index: Int) {
 }
 
 @Composable
-fun TextTitle() {
+fun TextTitle(taskNumber: Int) {
     val inlineContent = mapOf(
         Pair(
             "inlineContent",
@@ -289,7 +339,7 @@ fun TextTitle() {
         )
     )
     val text = buildAnnotatedString {
-        append("You have got 5 tasks today to complete")
+        append("You have got ${taskNumber} tasks today to complete")
         appendInlineContent("inlineContent", "[icon]")
     }
     Text(
@@ -307,6 +357,6 @@ fun TextTitle() {
 @Composable
 fun ToDoPreview() {
     ToDoTaskAppTheme {
-        MainPage()
+        //MainPage()
     }
 }

@@ -162,6 +162,13 @@ fun ToDoDatePicker(
     ) {
         val currentDate = Date(System.currentTimeMillis())
 
+        val currentCalendar = Calendar.getInstance()
+        currentCalendar.time = currentDate
+        currentCalendar.set(Calendar.HOUR_OF_DAY, 0)
+        currentCalendar.set(Calendar.MINUTE, 0)
+        currentCalendar.set(Calendar.SECOND, 0)
+
+
         val startDateOfCurrentDate = Calendar.getInstance()
         startDateOfCurrentDate.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
 
@@ -276,13 +283,18 @@ fun ToDoDatePicker(
         ) {
             repeat(dates.size) { i ->
                 val dateItem = DateUtils.convertDateFormat(dates[i], "yyyy-MM-dd")
-                val columnModifier = if (dateSelected == dateItem) Modifier
-                    .border(
-                        2.dp,
-                        color = PrimaryColor,
-                        shape = RoundedCornerShape(5.dp)
-                    )
-                    .padding(5.dp) else Modifier.padding(5.dp)
+                val columnModifier =
+                    if ((dateSelected == dateItem) && (dates[i] > currentCalendar.time || dateItem == DateUtils.convertDateFormat(
+                            currentCalendar.time,
+                            "yyyy-MM-dd"
+                        ))
+                    ) Modifier
+                        .border(
+                            2.dp,
+                            color = PrimaryColor,
+                            shape = RoundedCornerShape(5.dp)
+                        )
+                        .padding(5.dp) else Modifier.padding(5.dp)
                 Column(
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -290,8 +302,16 @@ fun ToDoDatePicker(
                         .weight(1f, true)
                         .padding(5.dp)
                         .clickable {
-                            dateSelected = dateItem
-                            onDateSelected(dates[i])
+                            if ((dates[i] > currentCalendar.time) || (dates[i] > currentCalendar.time || dateItem == DateUtils.convertDateFormat(
+                                    currentCalendar.time,
+                                    "yyyy-MM-dd"
+                                ))
+                            ) {
+                                Log.d("hivu", dates[i].toString())
+                                Log.d("hivu", currentCalendar.time.toString())
+                                dateSelected = dateItem
+                                onDateSelected(dates[i])
+                            }
                         }
                 ) {
                     Text(
@@ -299,13 +319,21 @@ fun ToDoDatePicker(
                             .substring(0, 3),
                         fontSize = 14.sp,
                         modifier = Modifier.padding(bottom = 5.dp),
-                        color = if (dateSelected == dateItem) PrimaryColor else TextColor,
+                        color = if (dateSelected == dateItem) PrimaryColor else if ((dates[i] < currentCalendar.time) && (dateItem != DateUtils.convertDateFormat(
+                                currentCalendar.time,
+                                "yyyy-MM-dd"
+                            ))
+                        ) WhiteColor2 else TextColor,
                         fontWeight = if (dateSelected == dateItem) FontWeight.Bold else null
                     )
                     Text(
                         text = DateUtils.convertDateFormat(dates[i], "dd"),
                         fontSize = 14.sp,
-                        color = if (dateSelected == dateItem) PrimaryColor else TextColor,
+                        color = if (dateSelected == dateItem) PrimaryColor else if ((dates[i] < currentCalendar.time) && (dateItem != DateUtils.convertDateFormat(
+                                currentCalendar.time,
+                                "yyyy-MM-dd"
+                            ))
+                        ) WhiteColor2 else TextColor,
                         fontWeight = if (dateSelected == dateItem) FontWeight.Bold else null
                     )
                 }
