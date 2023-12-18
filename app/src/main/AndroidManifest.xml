@@ -14,6 +14,11 @@
         android:theme="@style/Theme.ToDoTaskApp"
         tools:targetApi="31">
         <activity
+            android:name=".ui.activity.TaskListActivity"
+            android:exported="false"
+            android:label="@string/title_activity_task_list"
+            android:theme="@style/Theme.ToDoTaskApp" />
+        <activity
             android:name=".ui.activity.CreateTaskActivity"
             android:exported="false"
             android:label="@string/title_activity_create_task"

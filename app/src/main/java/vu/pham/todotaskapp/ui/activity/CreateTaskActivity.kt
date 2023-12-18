@@ -78,6 +78,7 @@ import vu.pham.todotaskapp.utils.Constants
 import vu.pham.todotaskapp.utils.DateUtils
 import vu.pham.todotaskapp.viewmodels.CreateTaskViewModel
 import vu.pham.todotaskapp.viewmodels.viewmodelfactory.viewModelFactory
+import java.util.Date
 import kotlin.time.Duration
 
 class CreateTaskActivity : ComponentActivity() {
@@ -145,10 +146,14 @@ fun CreateTask(
         mutableStateOf(false)
     }
     var startTime by remember {
-        mutableStateOf(Calendar.getInstance())
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.SECOND, 0)
+        mutableStateOf(calendar)
     }
     var endTime by remember {
-        mutableStateOf(Calendar.getInstance())
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.SECOND, 0)
+        mutableStateOf(calendar)
     }
     var priority by remember {
         mutableStateOf(0)
@@ -190,6 +195,8 @@ fun CreateTask(
                     modifier = Modifier.padding(bottom = 20.dp),
                     onDateSelected = { dateSelected ->
                         taskDate = dateSelected.time
+                        Log.d("hivu", taskDate.toString())
+                        Log.d("hivu", DateUtils.convertDateFormat(Date(taskDate), "yyyy-MM-dd"))
                     })
                 Text(
                     text = "Schedule", fontSize = 20.sp, color = TextColor, modifier =
@@ -246,6 +253,7 @@ fun CreateTask(
                                             val calendar = Calendar.getInstance()
                                             calendar.set(Calendar.HOUR_OF_DAY, hour)
                                             calendar.set(Calendar.MINUTE, minute)
+                                            calendar.set(Calendar.SECOND, 0)
                                             startTime = calendar
                                         }).show()
                                 },
@@ -287,6 +295,7 @@ fun CreateTask(
                                             val calendar = Calendar.getInstance()
                                             calendar.set(Calendar.HOUR_OF_DAY, hour)
                                             calendar.set(Calendar.MINUTE, minute)
+                                            calendar.set(Calendar.SECOND, 0)
                                             endTime = calendar
                                         }).show()
                                 },

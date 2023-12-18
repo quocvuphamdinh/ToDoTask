@@ -1,6 +1,7 @@
 package vu.pham.todotaskapp.ui.activity
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -10,6 +11,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalOverscrollConfiguration
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -66,11 +68,13 @@ import vu.pham.todotaskapp.ui.theme.ToDoTaskAppTheme
 import vu.pham.todotaskapp.ui.theme.WhiteColor
 import vu.pham.todotaskapp.ui.theme.WhiteColor2
 import vu.pham.todotaskapp.ui.theme.WhiteColor3
+import vu.pham.todotaskapp.ui.utils.TaskItem
 import vu.pham.todotaskapp.ui.utils.ToDoFAB
 import vu.pham.todotaskapp.ui.utils.ToDoProgressBar
 import vu.pham.todotaskapp.ui.utils.ToDoTextField
 import vu.pham.todotaskapp.utils.Constants
 import vu.pham.todotaskapp.utils.DateUtils
+import vu.pham.todotaskapp.utils.TaskListType
 import vu.pham.todotaskapp.utils.width
 import vu.pham.todotaskapp.viewmodels.HomeViewModel
 import vu.pham.todotaskapp.viewmodels.viewmodelfactory.viewModelFactory
@@ -116,6 +120,8 @@ fun MainPage(
         homeViewModel.getTotalDailyTasksCompletedOrNotCompleted(true).collectAsStateWithLifecycle(
             initialValue = 0
         )
+    val tomorrowTasks =
+        homeViewModel.getTomorrowTasks(3).collectAsStateWithLifecycle(initialValue = emptyList())
     Scaffold(
         floatingActionButton = {
             ToDoFAB {
@@ -174,7 +180,14 @@ fun MainPage(
                                 .padding(top = 20.dp, bottom = 16.dp)
                         ) {
                             Text(text = "Progress", fontSize = 20.sp, color = TextColor)
-                            Text(text = "See All", fontSize = 16.sp, color = PrimaryColor)
+                            Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
+                                modifier = Modifier.clickable {
+                                    goToTaskListPage(
+                                        context,
+                                        "Daily Tasks",
+                                        TaskListType.DailyTasks
+                                    )
+                                })
                         }
 
                         Surface(
@@ -226,7 +239,14 @@ fun MainPage(
                                 .padding(top = 20.dp, bottom = 16.dp)
                         ) {
                             Text(text = "Today's Task", fontSize = 20.sp, color = TextColor)
-                            Text(text = "See All", fontSize = 16.sp, color = PrimaryColor)
+                            Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
+                                modifier = Modifier.clickable {
+                                    goToTaskListPage(
+                                        context,
+                                        "Today's Tasks",
+                                        TaskListType.TodayTasks
+                                    )
+                                })
                         }
                         Column {
                             repeat(todayTasks.value.size) { i ->
@@ -240,12 +260,19 @@ fun MainPage(
                                 .fillMaxWidth()
                                 .padding(top = 20.dp, bottom = 16.dp)
                         ) {
-                            Text(text = "Tommorrow's Task", fontSize = 20.sp, color = TextColor)
-                            Text(text = "See All", fontSize = 16.sp, color = PrimaryColor)
+                            Text(text = "Tomorrow's Task", fontSize = 20.sp, color = TextColor)
+                            Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
+                                modifier = Modifier.clickable {
+                                    goToTaskListPage(
+                                        context,
+                                        "Tomorrow's Tasks",
+                                        TaskListType.TomorrowTasks
+                                    )
+                                })
                         }
                         Column {
-                            repeat(todayTasks.value.size) { i ->
-                                TaskItem(todayTasks.value[i])
+                            repeat(tomorrowTasks.value.size) { i ->
+                                TaskItem(tomorrowTasks.value[i])
                             }
                         }
                     }
@@ -253,68 +280,6 @@ fun MainPage(
             )
         }
     )
-
-}
-
-@Composable
-fun TaskItem(task: Task) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentSize()
-            .padding(bottom = 10.dp),
-        color = BlackLight,
-        shape = RoundedCornerShape(5)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    if (task.priority == Constants.HIGH_PRIORITY) OrangeLight
-                    else if (task.priority == Constants.MEDIUM_PRIORITY) GreenLight
-                    else GreyLight
-                )
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(start = 20.dp)
-                    .background(BlackLight)
-                    .padding(10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.Start,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = task.name,
-                        fontSize = 16.sp,
-                        color = TextColor
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Outlined.DateRange,
-                            contentDescription = null,
-                            tint = WhiteColor2,
-                            modifier = Modifier.padding(end = 5.dp)
-                        )
-                        Text(
-                            text = DateUtils.convertDateFormat(Date(task.taskDate), "dd MMMM"),
-                            fontSize = 12.sp,
-                            color = WhiteColor2
-                        )
-                    }
-                }
-                Image(
-                    painterResource(id = if (task.isCompleted == 1) R.drawable.ic_completed else R.drawable.ic_not_completed),
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-    }
 }
 
 @Composable
@@ -339,7 +304,7 @@ fun TextTitle(taskNumber: Int) {
         )
     )
     val text = buildAnnotatedString {
-        append("You have got ${taskNumber} tasks today to complete")
+        append("You have got $taskNumber tasks today to complete")
         appendInlineContent("inlineContent", "[icon]")
     }
     Text(
@@ -351,6 +316,16 @@ fun TextTitle(taskNumber: Int) {
         fontWeight = FontWeight.Bold,
         style = LocalTextStyle.current.copy(lineHeight = 35.sp)
     )
+}
+
+fun goToTaskListPage(context: Context, title: String, tasksType: TaskListType) {
+    Intent(context, TaskListActivity::class.java).also {
+        val bundle = Bundle()
+        bundle.putString("title", title)
+        bundle.putSerializable("tasks_type", tasksType)
+        it.putExtras(bundle)
+        context.startActivity(it)
+    }
 }
 
 @Preview(showBackground = true)

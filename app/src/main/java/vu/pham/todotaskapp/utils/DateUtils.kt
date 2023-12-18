@@ -30,18 +30,24 @@ object DateUtils {
         val cal1 = date1?.let {
             val cal1 = Calendar.getInstance()
             cal1.time = it
+            cal1.set(Calendar.HOUR_OF_DAY, 0)
+            cal1.set(Calendar.MINUTE, 0)
+            cal1.set(Calendar.SECOND, 0)
             cal1
         }
 
         val cal2 = date2?.let {
             val cal2 = Calendar.getInstance()
             cal2.time = it
+            cal2.set(Calendar.HOUR_OF_DAY, 0)
+            cal2.set(Calendar.MINUTE, 0)
+            cal2.set(Calendar.SECOND, 0)
             cal2
         }
 
         cal1?.let {
             while (!cal1.after(cal2)) {
-                dates.add(cal1.time);
+                dates.add(cal1.time)
                 cal1.add(Calendar.DATE, 1)
             }
         }

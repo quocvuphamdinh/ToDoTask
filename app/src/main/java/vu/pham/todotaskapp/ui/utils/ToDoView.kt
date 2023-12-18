@@ -2,6 +2,7 @@ package vu.pham.todotaskapp.ui.utils
 
 import android.annotation.SuppressLint
 import android.util.Log
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -10,17 +11,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
@@ -31,6 +35,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -44,18 +49,25 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import vu.pham.todotaskapp.R
+import vu.pham.todotaskapp.models.Task
 import vu.pham.todotaskapp.ui.theme.BlackColor
 import vu.pham.todotaskapp.ui.theme.BlackLight
+import vu.pham.todotaskapp.ui.theme.GreenLight
+import vu.pham.todotaskapp.ui.theme.GreyLight
+import vu.pham.todotaskapp.ui.theme.OrangeLight
 import vu.pham.todotaskapp.ui.theme.PrimaryColor
 import vu.pham.todotaskapp.ui.theme.PrimaryWithGreyColor
 import vu.pham.todotaskapp.ui.theme.TextColor
 import vu.pham.todotaskapp.ui.theme.WhiteColor
 import vu.pham.todotaskapp.ui.theme.WhiteColor2
+import vu.pham.todotaskapp.utils.Constants
 import vu.pham.todotaskapp.utils.DateUtils
 import vu.pham.todotaskapp.utils.width
 import java.util.Calendar
@@ -307,8 +319,6 @@ fun ToDoDatePicker(
                                     "yyyy-MM-dd"
                                 ))
                             ) {
-                                Log.d("hivu", dates[i].toString())
-                                Log.d("hivu", currentCalendar.time.toString())
                                 dateSelected = dateItem
                                 onDateSelected(dates[i])
                             }
@@ -390,5 +400,66 @@ fun ToDoButton(
             fontSize = 16.sp,
             color = textColor ?: TextColor
         )
+    }
+}
+
+@Composable
+fun TaskItem(task: Task) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentSize()
+            .padding(bottom = 10.dp),
+        color = BlackLight,
+        shape = RoundedCornerShape(5)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    if (task.priority == Constants.HIGH_PRIORITY) OrangeLight
+                    else if (task.priority == Constants.MEDIUM_PRIORITY) GreenLight
+                    else GreyLight
+                )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 20.dp)
+                    .background(BlackLight)
+                    .padding(10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = task.name,
+                        fontSize = 16.sp,
+                        color = TextColor
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Outlined.DateRange,
+                            contentDescription = null,
+                            tint = WhiteColor2,
+                            modifier = Modifier.padding(end = 5.dp)
+                        )
+                        Text(
+                            text = DateUtils.convertDateFormat(Date(task.taskDate), "dd MMMM"),
+                            fontSize = 12.sp,
+                            color = WhiteColor2
+                        )
+                    }
+                }
+                Image(
+                    painterResource(id = if (task.isCompleted == 1) R.drawable.ic_completed else R.drawable.ic_not_completed),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
     }
 }

@@ -16,4 +16,6 @@ class HomeViewModel(
 
     fun getTotalDailyTasksCompletedOrNotCompleted(isCompleted: Boolean) =
         taskRepository.getTotalDailyTasksCompletedOrNotCompleted(if (isCompleted) 1 else 0)
+
+    fun getTomorrowTasks(size: Int) = taskRepository.getTomorrowTasks(size)
 }
