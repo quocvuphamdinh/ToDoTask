@@ -3,6 +3,7 @@ package vu.pham.todotaskapp.ui.activity
 import android.app.Activity
 import android.content.Context
 import android.icu.util.Calendar
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -59,6 +60,7 @@ import vu.pham.todotaskapp.models.Task
 import vu.pham.todotaskapp.ui.theme.BackgroundColor
 import vu.pham.todotaskapp.ui.theme.BlackColor
 import vu.pham.todotaskapp.ui.theme.BlackLight
+import vu.pham.todotaskapp.ui.theme.ButtonGreyColor
 import vu.pham.todotaskapp.ui.theme.GreenLight
 import vu.pham.todotaskapp.ui.theme.GreyLight
 import vu.pham.todotaskapp.ui.theme.OrangeLight
@@ -71,6 +73,7 @@ import vu.pham.todotaskapp.ui.utils.LoadingDialog
 import vu.pham.todotaskapp.ui.utils.ToDoButton
 import vu.pham.todotaskapp.ui.utils.ToDoCheckBox
 import vu.pham.todotaskapp.ui.utils.ToDoDatePicker
+import vu.pham.todotaskapp.ui.utils.ToDoDialog
 import vu.pham.todotaskapp.ui.utils.ToDoTextField
 import vu.pham.todotaskapp.ui.utils.timerPickerDialog
 import vu.pham.todotaskapp.utils.AppState
@@ -118,9 +121,18 @@ class CreateTaskActivity : ComponentActivity() {
                         LoadingDialog(isShow = false)
                         activity?.finish()
                     }
+
                     AppState.Error -> LoadingDialog(isShow = false)
                 }
-                CreateTask(createTaskViewModel, context, activity)
+                val bundle = intent?.extras
+                val task = bundle?.let {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        it.getParcelable("task", Task::class.java)
+                    } else {
+                        it.getParcelable("task") as Task?
+                    }
+                }
+                CreateTask(createTaskViewModel, context, activity, task = task)
             }
         }
     }
@@ -131,35 +143,69 @@ class CreateTaskActivity : ComponentActivity() {
 fun CreateTask(
     viewModel: CreateTaskViewModel,
     context: Context,
-    activity: Activity?
+    activity: Activity?,
+    task: Task?
 ) {
     var taskDate by remember {
-        mutableStateOf(System.currentTimeMillis())
+        mutableStateOf(task?.taskDate ?: System.currentTimeMillis())
     }
     var name by remember {
-        mutableStateOf("")
+        mutableStateOf(task?.name ?: "")
     }
     var description by remember {
-        mutableStateOf("")
+        mutableStateOf(task?.description ?: "")
     }
     var isDailyTask by remember {
-        mutableStateOf(false)
+        mutableStateOf(
+            if (task != null) {
+                task.isDailyTask == 1
+            } else false
+        )
     }
     var startTime by remember {
         val calendar = Calendar.getInstance()
         calendar.set(Calendar.SECOND, 0)
+        task?.let {
+            calendar.time = Date(it.startTime)
+        }
         mutableStateOf(calendar)
     }
     var endTime by remember {
         val calendar = Calendar.getInstance()
         calendar.set(Calendar.SECOND, 0)
+        task?.let {
+            calendar.time = Date(it.endTime)
+        }
         mutableStateOf(calendar)
     }
     var priority by remember {
-        mutableStateOf(0)
+        mutableStateOf(task?.priority ?: 0)
     }
     var isSwitchOn by remember {
+        mutableStateOf(
+            if (task != null) {
+                task.isAlert == 1
+            } else false
+        )
+    }
+    var isShowDialog by remember {
         mutableStateOf(false)
+    }
+    if (isShowDialog) {
+        ToDoDialog(
+            isShow = isShowDialog,
+            title = "Are you sure?",
+            content = "Do you want to delete this task ?",
+            onOK = {
+                isShowDialog = false
+                if (task != null) {
+                    viewModel.deleteTask(task)
+                }
+            },
+            onCancel = {
+                isShowDialog = false
+            }
+        )
     }
     Scaffold(
         modifier = Modifier
@@ -168,7 +214,7 @@ fun CreateTask(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text(text = "Create New Task")
+                    Text(text = task?.name ?: "Create New Task")
                 },
                 navigationIcon = {
                     IconButton(onClick = { activity?.finish() }) {
@@ -192,6 +238,7 @@ fun CreateTask(
                     .verticalScroll(rememberScrollState())
             ) {
                 ToDoDatePicker(
+                    initDate = if (task != null) Date(task.taskDate) else null,
                     modifier = Modifier.padding(bottom = 20.dp),
                     onDateSelected = { dateSelected ->
                         taskDate = dateSelected.time
@@ -214,7 +261,7 @@ fun CreateTask(
                     },
                     isLongText = false,
                     enabled = true,
-                    value = null
+                    value = name
                 )
                 ToDoTextField(
                     modifier = Modifier
@@ -227,7 +274,7 @@ fun CreateTask(
                     },
                     isLongText = true,
                     enabled = true,
-                    value = null
+                    value = description
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -409,7 +456,8 @@ fun CreateTask(
                     textCheckBox = "Daily Task",
                     onCheckedChange = { isChecked ->
                         isDailyTask = isChecked
-                    }
+                    },
+                    initValueChecked = isDailyTask
                 )
                 Row(
                     modifier = Modifier
@@ -431,29 +479,70 @@ fun CreateTask(
                         )
                     )
                 }
-                ToDoButton(
-                    buttonModifier = Modifier.fillMaxWidth(),
-                    textButton = "Create Task",
-                    textColor = TextColor,
-                    onClick = {
-
-                        val task = Task(
-                            id = null,
-                            name = name,
-                            description = description,
-                            createdDate = System.currentTimeMillis(),
-                            modifiedDate = null,
-                            taskDate = taskDate,
-                            startTime = startTime.timeInMillis,
-                            endTime = endTime.timeInMillis,
-                            priority = priority,
-                            isDailyTask = if (isDailyTask) 1 else 0,
-                            isAlert = if (isSwitchOn) 1 else 0,
-                            isCompleted = 0
+                if (task != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        ToDoButton(
+                            onClick = {
+                                val taskUpdate = Task(
+                                    id = task.id,
+                                    name = name,
+                                    description = description,
+                                    createdDate = System.currentTimeMillis(),
+                                    modifiedDate = null,
+                                    taskDate = taskDate,
+                                    startTime = startTime.timeInMillis,
+                                    endTime = endTime.timeInMillis,
+                                    priority = priority,
+                                    isDailyTask = if (isDailyTask) 1 else 0,
+                                    isAlert = if (isSwitchOn) 1 else 0,
+                                    isCompleted = 0
+                                )
+                                viewModel.updateTask(taskUpdate)
+                            },
+                            buttonModifier = Modifier.weight(10f, true),
+                            textButton = "Edit Task",
+                            textColor = TextColor,
+                            buttonColor = null
                         )
-                        viewModel.createTask(task)
+                        Spacer(modifier = Modifier.weight(1f, true))
+                        ToDoButton(
+                            onClick = {
+                                isShowDialog = true
+                            },
+                            buttonModifier = Modifier.weight(10f, true),
+                            textButton = "Delete Task",
+                            textColor = TextColor,
+                            buttonColor = ButtonGreyColor
+                        )
                     }
-                )
+                } else {
+                    ToDoButton(
+                        buttonModifier = Modifier.fillMaxWidth(),
+                        textButton = "Create Task",
+                        textColor = TextColor,
+                        buttonColor = null,
+                        onClick = {
+                            val taskResult = Task(
+                                id = null,
+                                name = name,
+                                description = description,
+                                createdDate = System.currentTimeMillis(),
+                                modifiedDate = null,
+                                taskDate = taskDate,
+                                startTime = startTime.timeInMillis,
+                                endTime = endTime.timeInMillis,
+                                priority = priority,
+                                isDailyTask = if (isDailyTask) 1 else 0,
+                                isAlert = if (isSwitchOn) 1 else 0,
+                                isCompleted = 0
+                            )
+                            viewModel.createTask(taskResult)
+                        }
+                    )
+                }
             }
         }
 

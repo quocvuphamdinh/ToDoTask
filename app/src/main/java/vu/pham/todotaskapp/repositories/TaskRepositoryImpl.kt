@@ -8,6 +8,9 @@ class TaskRepositoryImpl(
     private val toDoDAO: ToDoDAO
 ) : TaskRepository {
     override suspend fun createTask(task: Task) = toDoDAO.insertTask(task)
+    override suspend fun updateTask(task: Task) = toDoDAO.updateTask(task)
+    override suspend fun deleteTask(task: Task) = toDoDAO.deleteTask(task)
+
     override fun getTodayTasks(size: Int): Flow<List<Task>> =
         if (size == 0) toDoDAO.getAllTodayTasks() else toDoDAO.getTodayTasksWithSize(size)
 

@@ -6,6 +6,10 @@ import vu.pham.todotaskapp.models.Task
 interface TaskRepository {
     suspend fun createTask(task: Task)
 
+    suspend fun updateTask(task: Task)
+
+    suspend fun deleteTask(task: Task)
+
     fun getTodayTasks(size: Int): Flow<List<Task>>
 
     fun getTomorrowTasks(size: Int): Flow<List<Task>>

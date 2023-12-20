@@ -1,7 +1,6 @@
 package vu.pham.todotaskapp.ui.utils
 
 import android.annotation.SuppressLint
-import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,7 +25,6 @@ import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
@@ -166,6 +164,7 @@ fun ToDoFAB(onClick: () -> Unit) {
 @SuppressLint("SimpleDateFormat", "MutableCollectionMutableState")
 @Composable
 fun ToDoDatePicker(
+    initDate: Date?,
     modifier: Modifier,
     onDateSelected: (date: Date) -> Unit
 ) {
@@ -193,6 +192,9 @@ fun ToDoDatePicker(
 
         val startDate by remember {
             val currentDate1 = Calendar.getInstance()
+            initDate?.let {
+                currentDate1.time = it
+            }
             currentDate1.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
             currentDate1.set(Calendar.HOUR_OF_DAY, 0)
             currentDate1.set(Calendar.MINUTE, 0)
@@ -221,7 +223,7 @@ fun ToDoDatePicker(
         var dateSelected by remember {
             mutableStateOf(
                 DateUtils.convertDateFormat(
-                    currentDate,
+                    initDate ?: currentDate,
                     "yyyy-MM-dd"
                 )
             )
@@ -296,7 +298,7 @@ fun ToDoDatePicker(
             repeat(dates.size) { i ->
                 val dateItem = DateUtils.convertDateFormat(dates[i], "yyyy-MM-dd")
                 val columnModifier =
-                    if ((dateSelected == dateItem) && (dates[i] > currentCalendar.time || dateItem == DateUtils.convertDateFormat(
+                    if ((dateSelected == dateItem) && (initDate != null || dates[i] > currentCalendar.time || dateItem == DateUtils.convertDateFormat(
                             currentCalendar.time,
                             "yyyy-MM-dd"
                         ))
@@ -356,10 +358,11 @@ fun ToDoDatePicker(
 fun ToDoCheckBox(
     modifier: Modifier,
     onCheckedChange: (isChecked: Boolean) -> Unit,
-    textCheckBox: String
+    textCheckBox: String,
+    initValueChecked: Boolean?
 ) {
     var checked by remember {
-        mutableStateOf(false)
+        mutableStateOf(initValueChecked ?: false)
     }
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -386,10 +389,16 @@ fun ToDoCheckBox(
 fun ToDoButton(
     onClick: () -> Unit,
     buttonModifier: Modifier,
-    textButton: String, textColor: Color?
+    textButton: String, textColor: Color?,
+    buttonColor: Color?
 ) {
     val gradient =
-        Brush.horizontalGradient(listOf(PrimaryColor, WhiteColor))
+        Brush.horizontalGradient(
+            if (buttonColor != null) listOf(buttonColor, buttonColor) else listOf(
+                PrimaryColor,
+                WhiteColor
+            )
+        )
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
@@ -404,12 +413,15 @@ fun ToDoButton(
 }
 
 @Composable
-fun TaskItem(task: Task) {
+fun TaskItem(task: Task, onClick: () -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentSize()
-            .padding(bottom = 10.dp),
+            .padding(bottom = 10.dp)
+            .clickable {
+                onClick()
+            },
         color = BlackLight,
         shape = RoundedCornerShape(5)
     ) {

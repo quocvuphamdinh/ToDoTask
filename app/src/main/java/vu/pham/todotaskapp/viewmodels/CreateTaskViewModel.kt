@@ -24,26 +24,21 @@ class CreateTaskViewModel(
         MutableSharedFlow<String>()
     val message: SharedFlow<String> = _message.asSharedFlow()
 
-    fun createTask(task: Task) = viewModelScope.launch {
+    private fun taskValidate(task: Task): String {
         if (task.name.isEmpty()) {
-            _message.emit("Name must not be empty !")
-            return@launch
+            return "Name must not be empty !"
         }
         if (task.taskDate == 0L) {
-            _message.emit("Please select date for task !")
-            return@launch
+            return "Please select date for task !"
         }
         if (task.startTime == 0L) {
-            _message.emit("Please select start time for task !")
-            return@launch
+            return "Please select start time for task !"
         }
         if (task.endTime == 0L) {
-            _message.emit("Please select end time for task !")
-            return@launch
+            return "Please select end time for task !"
         }
         if (task.startTime >= task.endTime) {
-            _message.emit("End time must be after start time !")
-            return@launch
+            return "End time must be after start time !"
         }
         if (task.taskDate < System.currentTimeMillis()
             && DateUtils.convertDateFormat(
@@ -53,15 +48,39 @@ class CreateTaskViewModel(
                 "yyyy-MM-dd"
             ) != DateUtils.convertDateFormat(Date(System.currentTimeMillis()), "yyyy-MM-dd")
         ) {
-            _message.emit("Task date must be greater than or equal now !")
-            return@launch
+            return "Task date must be greater than or equal now !"
         }
         if (task.priority == 0) {
-            _message.emit("Please select priority for task !")
+            return "Please select priority for task !"
+        }
+        return ""
+    }
+
+    fun createTask(task: Task) = viewModelScope.launch {
+        val validate = taskValidate(task)
+        if (validate.isNotEmpty()) {
+            _message.emit(validate)
             return@launch
         }
         _isCreateTaskSuccess.emit(AppState.Loading)
         taskRepository.createTask(task)
+        _isCreateTaskSuccess.emit(AppState.Success)
+    }
+
+    fun updateTask(task: Task) = viewModelScope.launch {
+        val validate = taskValidate(task)
+        if (validate.isNotEmpty()) {
+            _message.emit(validate)
+            return@launch
+        }
+        _isCreateTaskSuccess.emit(AppState.Loading)
+        taskRepository.updateTask(task)
+        _isCreateTaskSuccess.emit(AppState.Success)
+    }
+
+    fun deleteTask(task: Task) = viewModelScope.launch {
+        _isCreateTaskSuccess.emit(AppState.Loading)
+        taskRepository.deleteTask(task)
         _isCreateTaskSuccess.emit(AppState.Success)
     }
 }

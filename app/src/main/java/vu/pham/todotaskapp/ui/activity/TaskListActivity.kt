@@ -1,6 +1,8 @@
 package vu.pham.todotaskapp.ui.activity
 
 import android.app.Activity
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -41,6 +43,7 @@ class TaskListActivity : ComponentActivity() {
             }
         }
     )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -50,7 +53,7 @@ class TaskListActivity : ComponentActivity() {
                 val tasksType = bundle?.getSerializable("tasks_type") as TaskListType
                 val context = LocalContext.current
                 val activity = (context as? Activity)
-                TaskList(activity, title ?: "Task List", tasksType, taskListViewModel)
+                TaskList(context, activity, title ?: "Task List", tasksType, taskListViewModel)
             }
         }
     }
@@ -59,12 +62,14 @@ class TaskListActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskList(
+    context: Context,
     activity: Activity?,
     title: String,
     taskListType: TaskListType,
     viewModel: TaskListViewModel
 ) {
-    val tasks = viewModel.getTasks(taskListType).collectAsStateWithLifecycle(initialValue = emptyList())
+    val tasks =
+        viewModel.getTasks(taskListType).collectAsStateWithLifecycle(initialValue = emptyList())
     Scaffold(
         modifier = Modifier
             .fillMaxSize(),
@@ -94,8 +99,15 @@ fun TaskList(
                 .padding(start = 10.dp, end = 10.dp, top = 20.dp, bottom = 10.dp)
         ) {
             LazyColumn(content = {
-                items(tasks.value.size){i->
-                    TaskItem(task = tasks.value[i])
+                items(tasks.value.size) { i ->
+                    TaskItem(task = tasks.value[i], onClick = {
+                        Intent(context, CreateTaskActivity::class.java).also { intent ->
+                            val bundle = Bundle()
+                            bundle.putParcelable("task", tasks.value[i])
+                            intent.putExtras(bundle)
+                            context.startActivity(intent)
+                        }
+                    })
                 }
             })
         }

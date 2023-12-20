@@ -1,8 +1,10 @@
 package vu.pham.todotaskapp.database
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import vu.pham.todotaskapp.models.Task
 
@@ -10,6 +12,12 @@ import vu.pham.todotaskapp.models.Task
 interface ToDoDAO {
     @Insert
     suspend fun insertTask(task: Task)
+
+    @Update
+    suspend fun updateTask(task: Task)
+
+    @Delete
+    suspend fun deleteTask(task: Task)
 
     @Query("SELECT * FROM task WHERE DATE(DATETIME(taskDate/1000, 'unixepoch', 'localtime')) = DATE('now') ORDER BY taskDate DESC, priority ASC LIMIT :size")
     fun getTodayTasksWithSize(size: Int): Flow<List<Task>>

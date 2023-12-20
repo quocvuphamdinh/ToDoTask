@@ -49,6 +49,7 @@ import androidx.compose.ui.text.Placeholder
 import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -180,14 +181,16 @@ fun MainPage(
                                 .padding(top = 20.dp, bottom = 16.dp)
                         ) {
                             Text(text = "Progress", fontSize = 20.sp, color = TextColor)
-                            Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
-                                modifier = Modifier.clickable {
-                                    goToTaskListPage(
-                                        context,
-                                        "Daily Tasks",
-                                        TaskListType.DailyTasks
-                                    )
-                                })
+                            if ((totalDailyTasksCompleted.value + totalDailyTasksNotCompleted.value) > 0) {
+                                Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
+                                    modifier = Modifier.clickable {
+                                        goToTaskListPage(
+                                            context,
+                                            "Daily Tasks",
+                                            TaskListType.DailyTasks
+                                        )
+                                    })
+                            }
                         }
 
                         Surface(
@@ -239,18 +242,39 @@ fun MainPage(
                                 .padding(top = 20.dp, bottom = 16.dp)
                         ) {
                             Text(text = "Today's Task", fontSize = 20.sp, color = TextColor)
-                            Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
-                                modifier = Modifier.clickable {
-                                    goToTaskListPage(
-                                        context,
-                                        "Today's Tasks",
-                                        TaskListType.TodayTasks
-                                    )
-                                })
+                            if (todayTasks.value.isNotEmpty()) {
+                                Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
+                                    modifier = Modifier.clickable {
+                                        goToTaskListPage(
+                                            context,
+                                            "Today's Tasks",
+                                            TaskListType.TodayTasks
+                                        )
+                                    })
+                            }
                         }
-                        Column {
-                            repeat(todayTasks.value.size) { i ->
-                                TaskItem(todayTasks.value[i])
+                        if (todayTasks.value.isEmpty()) {
+                            Text(
+                                text = "You don't have any today tasks to do",
+                                color = WhiteColor2,
+                                fontSize = 16.sp,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 20.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        } else {
+                            Column {
+                                repeat(todayTasks.value.size) { i ->
+                                    TaskItem(todayTasks.value[i], onClick = {
+                                        Intent(context, CreateTaskActivity::class.java).also {
+                                            val bundle = Bundle()
+                                            bundle.putParcelable("task", todayTasks.value[i])
+                                            it.putExtras(bundle)
+                                            context.startActivity(it)
+                                        }
+                                    })
+                                }
                             }
                         }
                         Row(
@@ -261,18 +285,39 @@ fun MainPage(
                                 .padding(top = 20.dp, bottom = 16.dp)
                         ) {
                             Text(text = "Tomorrow's Task", fontSize = 20.sp, color = TextColor)
-                            Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
-                                modifier = Modifier.clickable {
-                                    goToTaskListPage(
-                                        context,
-                                        "Tomorrow's Tasks",
-                                        TaskListType.TomorrowTasks
-                                    )
-                                })
+                            if (tomorrowTasks.value.isNotEmpty()) {
+                                Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
+                                    modifier = Modifier.clickable {
+                                        goToTaskListPage(
+                                            context,
+                                            "Tomorrow's Tasks",
+                                            TaskListType.TomorrowTasks
+                                        )
+                                    })
+                            }
                         }
-                        Column {
-                            repeat(tomorrowTasks.value.size) { i ->
-                                TaskItem(tomorrowTasks.value[i])
+                        if (tomorrowTasks.value.isEmpty()) {
+                            Text(
+                                text = "You don't have any tomorrow tasks to do",
+                                color = WhiteColor2,
+                                fontSize = 16.sp,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 20.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        } else {
+                            Column {
+                                repeat(tomorrowTasks.value.size) { i ->
+                                    TaskItem(tomorrowTasks.value[i], onClick = {
+                                        Intent(context, CreateTaskActivity::class.java).also {
+                                            val bundle = Bundle()
+                                            bundle.putParcelable("task", tomorrowTasks.value[i])
+                                            it.putExtras(bundle)
+                                            context.startActivity(it)
+                                        }
+                                    })
+                                }
                             }
                         }
                     }
