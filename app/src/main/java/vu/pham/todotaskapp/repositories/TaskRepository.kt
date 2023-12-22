@@ -23,4 +23,6 @@ interface TaskRepository {
     fun getDailyTasks(size: Int): Flow<List<Task>>
 
     fun getAllTasks(size: Int): Flow<List<Task>>
+
+    fun getAllTasksByName(name: String): Flow<List<Task>>
 }

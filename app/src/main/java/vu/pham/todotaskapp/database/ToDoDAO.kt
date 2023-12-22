@@ -51,4 +51,7 @@ interface ToDoDAO {
 
     @Query("SELECT * FROM task ORDER BY taskDate DESC, priority ASC")
     fun getAllTasks(): Flow<List<Task>>
+
+    @Query("SELECT * FROM task WHERE name LIKE '%' || :name || '%' ORDER BY taskDate DESC, priority ASC")
+    fun getAllTasksByName(name: String): Flow<List<Task>>
 }

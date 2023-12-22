@@ -31,4 +31,6 @@ class TaskRepositoryImpl(
 
     override fun getAllTasks(size: Int): Flow<List<Task>> =
         if(size == 0) toDoDAO.getAllTasks() else toDoDAO.getAllTasksWithSize(size)
+
+    override fun getAllTasksByName(name: String): Flow<List<Task>> = toDoDAO.getAllTasksByName(name)
 }

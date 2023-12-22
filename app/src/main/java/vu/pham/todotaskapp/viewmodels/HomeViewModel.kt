@@ -13,13 +13,6 @@ class HomeViewModel(
     private val taskRepository: TaskRepository
 ) : ViewModel() {
 
-    private val _progress = MutableStateFlow(0)
-    val progress = _progress.asStateFlow()
-
-    fun setProgress(completed: Int, total: Int) {
-        Log.d("hivu", "$completed $total")
-        _progress.value = (completed.div(total)) * 100
-    }
     fun getTodayTasks() = taskRepository.getTodayTasks(3)
 
     fun getTotalTodayTasksCompletedOrNotCompleted(isCompleted: Boolean) =
@@ -34,6 +27,8 @@ class HomeViewModel(
     fun getTomorrowTasks() = taskRepository.getTomorrowTasks(3)
 
     fun getAllTasks() = taskRepository.getAllTasks(3)
+
+    fun getAllTasksByName(name: String) = taskRepository.getAllTasksByName(name)
 
     fun updateTask(task: Task) = viewModelScope.launch {
         taskRepository.updateTask(task)

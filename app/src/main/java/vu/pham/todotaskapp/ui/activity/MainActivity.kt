@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -22,13 +21,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.InlineTextContent
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -38,7 +37,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,16 +54,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import vu.pham.todotaskapp.R
 import vu.pham.todotaskapp.ToDoApplication
 import vu.pham.todotaskapp.models.Task
 import vu.pham.todotaskapp.ui.theme.BackgroundColor
 import vu.pham.todotaskapp.ui.theme.BlackLight
-import vu.pham.todotaskapp.ui.theme.GreenLight
-import vu.pham.todotaskapp.ui.theme.GreyLight
-import vu.pham.todotaskapp.ui.theme.OrangeLight
 import vu.pham.todotaskapp.ui.theme.PrimaryColor
 import vu.pham.todotaskapp.ui.theme.TextColor
 import vu.pham.todotaskapp.ui.theme.ToDoTaskAppTheme
@@ -76,13 +70,10 @@ import vu.pham.todotaskapp.ui.utils.TaskItem
 import vu.pham.todotaskapp.ui.utils.ToDoFAB
 import vu.pham.todotaskapp.ui.utils.ToDoProgressBar
 import vu.pham.todotaskapp.ui.utils.ToDoTextField
-import vu.pham.todotaskapp.utils.Constants
-import vu.pham.todotaskapp.utils.DateUtils
 import vu.pham.todotaskapp.utils.TaskListType
 import vu.pham.todotaskapp.utils.width
 import vu.pham.todotaskapp.viewmodels.HomeViewModel
 import vu.pham.todotaskapp.viewmodels.viewmodelfactory.viewModelFactory
-import java.util.Date
 
 class MainActivity : ComponentActivity() {
     private val homeViewModel by viewModels<HomeViewModel>(
@@ -131,6 +122,12 @@ fun MainPage(
     var progress by remember {
         mutableStateOf(0)
     }
+    var textSearch by remember {
+        mutableStateOf("")
+    }
+    val tasksByName = homeViewModel.getAllTasksByName(textSearch).collectAsStateWithLifecycle(
+        initialValue = emptyList()
+    )
     Scaffold(
         floatingActionButton = {
             ToDoFAB {
@@ -148,7 +145,9 @@ fun MainPage(
                             .fillMaxSize()
                             .background(BackgroundColor)
                             .padding(start = 10.dp, end = 10.dp, top = 20.dp, bottom = 10.dp)
-                            .verticalScroll(rememberScrollState())
+                            .thenIf(textSearch.isEmpty()) {
+                                Modifier.verticalScroll(rememberScrollState())
+                            }
                     ) {
                         Row(
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -174,224 +173,258 @@ fun MainPage(
                                     tint = WhiteColor
                                 )
                             },
-                            onTextChanged = {
-
+                            onTextChanged = { search ->
+                                textSearch = search
                             },
                             isLongText = false,
                             enabled = true,
                             value = null
                         )
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 20.dp, bottom = 16.dp)
-                        ) {
-                            Text(text = "Progress", fontSize = 20.sp, color = TextColor)
-                            if ((totalDailyTasksCompleted.value + totalDailyTasksNotCompleted.value) > 0) {
-                                Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
-                                    modifier = Modifier.clickable {
+                        if (textSearch.isNotEmpty()) {
+                            if (tasksByName.value.isEmpty()) {
+                                Text(
+                                    text = "No task is found",
+                                    fontSize = 16.sp,
+                                    color = WhiteColor2,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 20.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                            } else {
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .fillMaxSize(),
+                                    content = {
+                                        items(tasksByName.value.size) { index ->
+                                            TaskItem(
+                                                task = tasksByName.value[index],
+                                                onClick = {
+                                                    Intent(
+                                                        context,
+                                                        CreateTaskActivity::class.java
+                                                    ).also {
+                                                        goToTaskDetail(
+                                                            context,
+                                                            tasksByName.value[index]
+                                                        )
+                                                    }
+                                                },
+                                                onTick = {
+                                                    completeTask(
+                                                        tasksByName.value[index],
+                                                        homeViewModel
+                                                    )
+                                                })
+                                        }
+                                    })
+                            }
+                        } else {
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 20.dp, bottom = 16.dp)
+                            ) {
+                                Text(text = "Progress", fontSize = 20.sp, color = TextColor)
+                                if ((totalDailyTasksCompleted.value + totalDailyTasksNotCompleted.value) > 0) {
+                                    Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
+                                        modifier = Modifier.clickable {
+                                            goToTaskListPage(
+                                                context,
+                                                "Daily Tasks",
+                                                TaskListType.DailyTasks
+                                            )
+                                        })
+                                }
+                            }
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .wrapContentSize()
+                                    .clickable {
                                         goToTaskListPage(
                                             context,
                                             "Daily Tasks",
                                             TaskListType.DailyTasks
                                         )
-                                    })
-                            }
-                        }
-
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .wrapContentSize()
-                                .clickable {
-                                    goToTaskListPage(
-                                        context,
-                                        "Daily Tasks",
-                                        TaskListType.DailyTasks
-                                    )
-                                },
-                            color = BlackLight,
-                            shape = RoundedCornerShape(5)
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 10.dp, vertical = 20.dp)
+                                    },
+                                color = BlackLight,
+                                shape = RoundedCornerShape(5)
                             ) {
-                                Text(
-                                    text = "Daily Task", color = TextColor, fontSize = 16.sp,
-                                    modifier = Modifier.padding(bottom = 6.dp)
-                                )
-                                Text(
-                                    text = "${totalDailyTasksCompleted.value}/${totalDailyTasksCompleted.value + totalDailyTasksNotCompleted.value} Task Completed",
-                                    color = WhiteColor2,
-                                    fontSize = 14.sp,
-                                    modifier = Modifier.padding(bottom = 6.dp)
-                                )
-                                progress =
-                                    if ((totalDailyTasksCompleted.value + totalDailyTasksNotCompleted.value) > 0)
-                                        ((totalDailyTasksCompleted.value.toDouble() / (totalDailyTasksCompleted.value + totalDailyTasksNotCompleted.value)) * 100).toInt()
-                                    else 0
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 20.dp)
                                 ) {
                                     Text(
-                                        text = "You are almost done go ahead",
-                                        color = WhiteColor3,
-                                        fontSize = 12.sp
+                                        text = "Daily Task", color = TextColor, fontSize = 16.sp,
+                                        modifier = Modifier.padding(bottom = 6.dp)
                                     )
-
                                     Text(
-                                        text = "${progress}%", color = TextColor, fontSize = 16.sp,
+                                        text = "${totalDailyTasksCompleted.value}/${totalDailyTasksCompleted.value + totalDailyTasksNotCompleted.value} Task Completed",
+                                        color = WhiteColor2,
+                                        fontSize = 14.sp,
+                                        modifier = Modifier.padding(bottom = 6.dp)
                                     )
-                                }
-                                ToDoProgressBar(progress)
-                            }
-                        }
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 20.dp, bottom = 16.dp)
-                        ) {
-                            Text(text = "Today's Task", fontSize = 20.sp, color = TextColor)
-                            if (todayTasks.value.isNotEmpty()) {
-                                Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
-                                    modifier = Modifier.clickable {
-                                        goToTaskListPage(
-                                            context,
-                                            "Today's Tasks",
-                                            TaskListType.TodayTasks
+                                    progress =
+                                        if ((totalDailyTasksCompleted.value + totalDailyTasksNotCompleted.value) > 0)
+                                            ((totalDailyTasksCompleted.value.toDouble() / (totalDailyTasksCompleted.value + totalDailyTasksNotCompleted.value)) * 100).toInt()
+                                        else 0
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = if (progress >= 100) "Good job! Your daily tasks are completed"
+                                            else if (progress in 50..99) "You are almost done go ahead!"
+                                            else if (progress <= 0) "Please start to do your tasks or create it."
+                                            else "Please remember to do your tasks.",
+                                            color = WhiteColor3,
+                                            fontSize = 12.sp
                                         )
-                                    })
+
+                                        Text(
+                                            text = "${progress}%",
+                                            color = TextColor,
+                                            fontSize = 16.sp,
+                                        )
+                                    }
+                                    ToDoProgressBar(progress)
+                                }
                             }
-                        }
-                        if (todayTasks.value.isEmpty()) {
-                            Text(
-                                text = "You don't have any today tasks to do",
-                                color = WhiteColor2,
-                                fontSize = 16.sp,
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 20.dp),
-                                textAlign = TextAlign.Center
-                            )
-                        } else {
-                            Column {
-                                repeat(todayTasks.value.size) { i ->
-                                    TaskItem(todayTasks.value[i], onClick = {
-                                        Intent(context, CreateTaskActivity::class.java).also {
-                                            val bundle = Bundle()
-                                            bundle.putParcelable("task", todayTasks.value[i])
-                                            it.putExtras(bundle)
-                                            context.startActivity(it)
-                                        }
-                                    },
-                                        onTick = {
-                                            val task = todayTasks.value[i]
-                                            task.isCompleted = if (task.isCompleted == 1) 0 else 1
-                                            homeViewModel.updateTask(task)
+                                    .padding(top = 20.dp, bottom = 16.dp)
+                            ) {
+                                Text(text = "Today's Task", fontSize = 20.sp, color = TextColor)
+                                if (todayTasks.value.isNotEmpty()) {
+                                    Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
+                                        modifier = Modifier.clickable {
+                                            goToTaskListPage(
+                                                context,
+                                                "Today's Tasks",
+                                                TaskListType.TodayTasks
+                                            )
                                         })
                                 }
                             }
-                        }
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 20.dp, bottom = 16.dp)
-                        ) {
-                            Text(text = "Tomorrow's Task", fontSize = 20.sp, color = TextColor)
-                            if (tomorrowTasks.value.isNotEmpty()) {
-                                Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
-                                    modifier = Modifier.clickable {
-                                        goToTaskListPage(
-                                            context,
-                                            "Tomorrow's Tasks",
-                                            TaskListType.TomorrowTasks
-                                        )
-                                    })
+                            if (todayTasks.value.isEmpty()) {
+                                Text(
+                                    text = "You don't have any today tasks to do",
+                                    color = WhiteColor2,
+                                    fontSize = 16.sp,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 20.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                            } else {
+                                Column {
+                                    repeat(todayTasks.value.size) { i ->
+                                        TaskItem(todayTasks.value[i], onClick = {
+                                            Intent(
+                                                context,
+                                                CreateTaskActivity::class.java
+                                            ).also {
+                                                goToTaskDetail(context, todayTasks.value[i])
+                                            }
+                                        },
+                                            onTick = {
+                                                completeTask(todayTasks.value[i], homeViewModel)
+                                            })
+                                    }
+                                }
                             }
-                        }
-                        if (tomorrowTasks.value.isEmpty()) {
-                            Text(
-                                text = "You don't have any tomorrow tasks to do",
-                                color = WhiteColor2,
-                                fontSize = 16.sp,
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 20.dp),
-                                textAlign = TextAlign.Center
-                            )
-                        } else {
-                            Column {
-                                repeat(tomorrowTasks.value.size) { i ->
-                                    TaskItem(tomorrowTasks.value[i], onClick = {
-                                        Intent(context, CreateTaskActivity::class.java).also {
-                                            val bundle = Bundle()
-                                            bundle.putParcelable("task", tomorrowTasks.value[i])
-                                            it.putExtras(bundle)
-                                            context.startActivity(it)
-                                        }
-                                    },
-                                        onTick = {
-                                            val task = tomorrowTasks.value[i]
-                                            task.isCompleted = if (task.isCompleted == 1) 0 else 1
-                                            homeViewModel.updateTask(task)
+                                    .padding(top = 20.dp, bottom = 16.dp)
+                            ) {
+                                Text(text = "Tomorrow's Task", fontSize = 20.sp, color = TextColor)
+                                if (tomorrowTasks.value.isNotEmpty()) {
+                                    Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
+                                        modifier = Modifier.clickable {
+                                            goToTaskListPage(
+                                                context,
+                                                "Tomorrow's Tasks",
+                                                TaskListType.TomorrowTasks
+                                            )
                                         })
                                 }
                             }
-                        }
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 20.dp, bottom = 16.dp)
-                        ) {
-                            Text(text = "All Task", fontSize = 20.sp, color = TextColor)
-                            if (tomorrowTasks.value.isNotEmpty()) {
-                                Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
-                                    modifier = Modifier.clickable {
-                                        goToTaskListPage(
-                                            context,
-                                            "All Tasks",
-                                            TaskListType.AllTasks
-                                        )
-                                    })
+                            if (tomorrowTasks.value.isEmpty()) {
+                                Text(
+                                    text = "You don't have any tomorrow tasks to do",
+                                    color = WhiteColor2,
+                                    fontSize = 16.sp,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 20.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                            } else {
+                                Column {
+                                    repeat(tomorrowTasks.value.size) { i ->
+                                        TaskItem(tomorrowTasks.value[i], onClick = {
+                                            Intent(
+                                                context,
+                                                CreateTaskActivity::class.java
+                                            ).also {
+                                                goToTaskDetail(context, tomorrowTasks.value[i])
+                                            }
+                                        },
+                                            onTick = {
+                                                completeTask(tomorrowTasks.value[i], homeViewModel)
+                                            })
+                                    }
+                                }
                             }
-                        }
-                        if (tomorrowTasks.value.isEmpty()) {
-                            Text(
-                                text = "You don't have any tasks",
-                                color = WhiteColor2,
-                                fontSize = 16.sp,
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 20.dp),
-                                textAlign = TextAlign.Center
-                            )
-                        } else {
-                            Column {
-                                repeat(allTasks.value.size) { i ->
-                                    TaskItem(allTasks.value[i], onClick = {
-                                        Intent(context, CreateTaskActivity::class.java).also {
-                                            val bundle = Bundle()
-                                            bundle.putParcelable("task", allTasks.value[i])
-                                            it.putExtras(bundle)
-                                            context.startActivity(it)
-                                        }
-                                    },
-                                        onTick = {
-                                            val task = allTasks.value[i]
-                                            task.isCompleted = if (task.isCompleted == 1) 0 else 1
-                                            homeViewModel.updateTask(task)
+                                    .padding(top = 20.dp, bottom = 16.dp)
+                            ) {
+                                Text(text = "All Task", fontSize = 20.sp, color = TextColor)
+                                if (tomorrowTasks.value.isNotEmpty()) {
+                                    Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
+                                        modifier = Modifier.clickable {
+                                            goToTaskListPage(
+                                                context,
+                                                "All Tasks",
+                                                TaskListType.AllTasks
+                                            )
                                         })
+                                }
+                            }
+                            if (tomorrowTasks.value.isEmpty()) {
+                                Text(
+                                    text = "You don't have any tasks",
+                                    color = WhiteColor2,
+                                    fontSize = 16.sp,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 20.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                            } else {
+                                Column {
+                                    repeat(allTasks.value.size) { i ->
+                                        TaskItem(allTasks.value[i], onClick = {
+                                            goToTaskDetail(context, allTasks.value[i])
+                                        },
+                                            onTick = {
+                                                completeTask(allTasks.value[i], homeViewModel)
+                                            })
+                                    }
                                 }
                             }
                         }
@@ -436,6 +469,30 @@ fun TextTitle(taskNumber: Int) {
         fontWeight = FontWeight.Bold,
         style = LocalTextStyle.current.copy(lineHeight = 35.sp)
     )
+}
+
+private inline fun Modifier.thenIf(condition: Boolean, block: () -> Modifier): Modifier {
+    return if (condition) then(block()) else this
+}
+
+fun completeTask(completedTask: Task, viewModel: HomeViewModel) {
+    val task =
+        if (completedTask.isCompleted == 1) completedTask.copy(isCompleted = 0) else completedTask.copy(
+            isCompleted = 1
+        )
+    viewModel.updateTask(task)
+}
+
+fun goToTaskDetail(context: Context, task: Task) {
+    Intent(
+        context,
+        CreateTaskActivity::class.java
+    ).also {
+        val bundle = Bundle()
+        bundle.putParcelable("task", task)
+        it.putExtras(bundle)
+        context.startActivity(it)
+    }
 }
 
 fun goToTaskListPage(context: Context, title: String, tasksType: TaskListType) {
