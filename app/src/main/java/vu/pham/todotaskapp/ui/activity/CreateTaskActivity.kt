@@ -486,19 +486,32 @@ fun CreateTask(
                     ) {
                         ToDoButton(
                             onClick = {
+                                if((task.taskDate < System.currentTimeMillis()) && (DateUtils.convertDateFormat(
+                                        Date(
+                                            task.taskDate
+                                        ),
+                                        "yyyy-MM-dd"
+                                    ) != DateUtils.convertDateFormat(Date(System.currentTimeMillis()), "yyyy-MM-dd"))){
+                                    Toast.makeText(context, "You cannot edit the task because the task's date has passed today !", Toast.LENGTH_LONG).show()
+                                    return@ToDoButton
+                                }
+                                if(task.isCompleted == 1){
+                                    Toast.makeText(context, "You cannot edit the task because the task's completed !", Toast.LENGTH_LONG).show()
+                                    return@ToDoButton
+                                }
                                 val taskUpdate = Task(
                                     id = task.id,
                                     name = name,
                                     description = description,
-                                    createdDate = System.currentTimeMillis(),
-                                    modifiedDate = null,
+                                    createdDate = task.createdDate,
+                                    modifiedDate = System.currentTimeMillis(),
                                     taskDate = taskDate,
                                     startTime = startTime.timeInMillis,
                                     endTime = endTime.timeInMillis,
                                     priority = priority,
                                     isDailyTask = if (isDailyTask) 1 else 0,
                                     isAlert = if (isSwitchOn) 1 else 0,
-                                    isCompleted = 0
+                                    isCompleted = task.isCompleted
                                 )
                                 viewModel.updateTask(taskUpdate)
                             },

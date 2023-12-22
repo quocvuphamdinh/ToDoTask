@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -413,7 +414,7 @@ fun ToDoButton(
 }
 
 @Composable
-fun TaskItem(task: Task, onClick: () -> Unit) {
+fun TaskItem(task: Task, onClick: () -> Unit, onTick: () -> Unit) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -450,8 +451,9 @@ fun TaskItem(task: Task, onClick: () -> Unit) {
                     Text(
                         text = task.name,
                         fontSize = 16.sp,
-                        color = TextColor
+                        color = TextColor,
                     )
+                    Spacer(modifier = Modifier.height(5.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             Icons.Outlined.DateRange,
@@ -469,7 +471,9 @@ fun TaskItem(task: Task, onClick: () -> Unit) {
                 Image(
                     painterResource(id = if (task.isCompleted == 1) R.drawable.ic_completed else R.drawable.ic_not_completed),
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp).clickable {
+                        onTick()
+                    }
                 )
             }
         }

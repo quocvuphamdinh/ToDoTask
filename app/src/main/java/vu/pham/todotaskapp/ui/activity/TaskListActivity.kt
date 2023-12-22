@@ -7,10 +7,14 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -23,17 +27,21 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import vu.pham.todotaskapp.ToDoApplication
 import vu.pham.todotaskapp.ui.theme.ToDoTaskAppTheme
 import vu.pham.todotaskapp.ui.theme.BackgroundColor
 import vu.pham.todotaskapp.ui.theme.TextColor
 import vu.pham.todotaskapp.ui.utils.TaskItem
+import vu.pham.todotaskapp.utils.DateUtils
 import vu.pham.todotaskapp.utils.TaskListType
 import vu.pham.todotaskapp.viewmodels.TaskListViewModel
 import vu.pham.todotaskapp.viewmodels.viewmodelfactory.viewModelFactory
+import java.util.Date
 
 class TaskListActivity : ComponentActivity() {
     private val taskListViewModel by viewModels<TaskListViewModel>(
@@ -59,7 +67,7 @@ class TaskListActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun TaskList(
     context: Context,
@@ -96,20 +104,73 @@ fun TaskList(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(it)
-                .padding(start = 10.dp, end = 10.dp, top = 20.dp, bottom = 10.dp)
+                .padding(start = 10.dp, end = 10.dp)
         ) {
-            LazyColumn(content = {
-                items(tasks.value.size) { i ->
-                    TaskItem(task = tasks.value[i], onClick = {
-                        Intent(context, CreateTaskActivity::class.java).also { intent ->
-                            val bundle = Bundle()
-                            bundle.putParcelable("task", tasks.value[i])
-                            intent.putExtras(bundle)
-                            context.startActivity(intent)
+            val listGroupBy = tasks.value.groupBy { task ->
+                DateUtils.convertDateFormat(
+                    Date(task.taskDate),
+                    "yyyy"
+                )
+            }
+            if (taskListType == TaskListType.AllTasks) {
+                LazyColumn(
+                    state = rememberLazyListState(),
+                    content = {
+                    listGroupBy.forEach { (year, list) ->
+                        stickyHeader {
+                            Text(
+                                text = year,
+                                fontSize = 16.sp,
+                                color = TextColor,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(BackgroundColor)
+                                    .padding(vertical = 5.dp)
+                            )
                         }
-                    })
-                }
-            })
+                        items(list.size, key = { listItem ->
+                            listItem
+                        }) { i ->
+                            TaskItem(task = tasks.value[i], onClick = {
+                                Intent(context, CreateTaskActivity::class.java).also { intent ->
+                                    val bundle = Bundle()
+                                    bundle.putParcelable("task", tasks.value[i])
+                                    intent.putExtras(bundle)
+                                    context.startActivity(intent)
+                                }
+                            },
+                                onTick = {
+                                    var task = tasks.value[i]
+                                    task = if (task.isCompleted == 1) task.copy(isCompleted = 0) else task.copy(isCompleted = 1)
+                                    viewModel.updateTask(task)
+                                })
+                        }
+                    }
+                })
+            } else {
+                LazyColumn(
+                    state = rememberLazyListState(),
+                    content = {
+                    items(tasks.value.size, key = { listItem ->
+                        listItem
+                    }) { i ->
+                        TaskItem(task = tasks.value[i], onClick = {
+                            Intent(context, CreateTaskActivity::class.java).also { intent ->
+                                val bundle = Bundle()
+                                bundle.putParcelable("task", tasks.value[i])
+                                intent.putExtras(bundle)
+                                context.startActivity(intent)
+                            }
+                        },
+                            onTick = {
+                                var task = tasks.value[i]
+                                task = if (task.isCompleted == 1) task.copy(isCompleted = 0) else task.copy(isCompleted = 1)
+                                viewModel.updateTask(task)
+                            })
+                    }
+                })
+            }
         }
     }
 }

@@ -45,4 +45,10 @@ interface ToDoDAO {
 
     @Query("SELECT * FROM task WHERE isDailyTask = 1 ORDER BY taskDate DESC, priority ASC")
     fun getAllDailyTasks(): Flow<List<Task>>
+
+    @Query("SELECT * FROM task ORDER BY taskDate DESC, priority ASC LIMIT :size")
+    fun getAllTasksWithSize(size: Int): Flow<List<Task>>
+
+    @Query("SELECT * FROM task ORDER BY taskDate DESC, priority ASC")
+    fun getAllTasks(): Flow<List<Task>>
 }

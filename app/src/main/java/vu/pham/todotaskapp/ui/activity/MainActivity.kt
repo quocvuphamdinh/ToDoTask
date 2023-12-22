@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -38,8 +39,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
@@ -108,7 +111,7 @@ fun MainPage(
 ) {
     val context = LocalContext.current
     val todayTasks =
-        homeViewModel.getTodayTasks(3).collectAsStateWithLifecycle(initialValue = emptyList())
+        homeViewModel.getTodayTasks().collectAsStateWithLifecycle(initialValue = emptyList())
     val totalTodayTasksNotCompleted =
         homeViewModel.getTotalTodayTasksCompletedOrNotCompleted(false).collectAsStateWithLifecycle(
             initialValue = 0
@@ -122,7 +125,12 @@ fun MainPage(
             initialValue = 0
         )
     val tomorrowTasks =
-        homeViewModel.getTomorrowTasks(3).collectAsStateWithLifecycle(initialValue = emptyList())
+        homeViewModel.getTomorrowTasks().collectAsStateWithLifecycle(initialValue = emptyList())
+    val allTasks =
+        homeViewModel.getAllTasks().collectAsStateWithLifecycle(initialValue = emptyList())
+    var progress by remember {
+        mutableStateOf(0)
+    }
     Scaffold(
         floatingActionButton = {
             ToDoFAB {
@@ -196,7 +204,14 @@ fun MainPage(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .wrapContentSize(),
+                                .wrapContentSize()
+                                .clickable {
+                                    goToTaskListPage(
+                                        context,
+                                        "Daily Tasks",
+                                        TaskListType.DailyTasks
+                                    )
+                                },
                             color = BlackLight,
                             shape = RoundedCornerShape(5)
                         ) {
@@ -215,8 +230,9 @@ fun MainPage(
                                     fontSize = 14.sp,
                                     modifier = Modifier.padding(bottom = 6.dp)
                                 )
-                                val progress =
-                                    if ((totalDailyTasksCompleted.value + totalDailyTasksNotCompleted.value) != 0) (totalDailyTasksCompleted.value / (totalDailyTasksCompleted.value + totalDailyTasksNotCompleted.value)) * 100
+                                progress =
+                                    if ((totalDailyTasksCompleted.value + totalDailyTasksNotCompleted.value) > 0)
+                                        ((totalDailyTasksCompleted.value.toDouble() / (totalDailyTasksCompleted.value + totalDailyTasksNotCompleted.value)) * 100).toInt()
                                     else 0
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -227,6 +243,7 @@ fun MainPage(
                                         color = WhiteColor3,
                                         fontSize = 12.sp
                                     )
+
                                     Text(
                                         text = "${progress}%", color = TextColor, fontSize = 16.sp,
                                     )
@@ -273,7 +290,12 @@ fun MainPage(
                                             it.putExtras(bundle)
                                             context.startActivity(it)
                                         }
-                                    })
+                                    },
+                                        onTick = {
+                                            val task = todayTasks.value[i]
+                                            task.isCompleted = if (task.isCompleted == 1) 0 else 1
+                                            homeViewModel.updateTask(task)
+                                        })
                                 }
                             }
                         }
@@ -316,7 +338,60 @@ fun MainPage(
                                             it.putExtras(bundle)
                                             context.startActivity(it)
                                         }
+                                    },
+                                        onTick = {
+                                            val task = tomorrowTasks.value[i]
+                                            task.isCompleted = if (task.isCompleted == 1) 0 else 1
+                                            homeViewModel.updateTask(task)
+                                        })
+                                }
+                            }
+                        }
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 20.dp, bottom = 16.dp)
+                        ) {
+                            Text(text = "All Task", fontSize = 20.sp, color = TextColor)
+                            if (tomorrowTasks.value.isNotEmpty()) {
+                                Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
+                                    modifier = Modifier.clickable {
+                                        goToTaskListPage(
+                                            context,
+                                            "All Tasks",
+                                            TaskListType.AllTasks
+                                        )
                                     })
+                            }
+                        }
+                        if (tomorrowTasks.value.isEmpty()) {
+                            Text(
+                                text = "You don't have any tasks",
+                                color = WhiteColor2,
+                                fontSize = 16.sp,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 20.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        } else {
+                            Column {
+                                repeat(allTasks.value.size) { i ->
+                                    TaskItem(allTasks.value[i], onClick = {
+                                        Intent(context, CreateTaskActivity::class.java).also {
+                                            val bundle = Bundle()
+                                            bundle.putParcelable("task", allTasks.value[i])
+                                            it.putExtras(bundle)
+                                            context.startActivity(it)
+                                        }
+                                    },
+                                        onTick = {
+                                            val task = allTasks.value[i]
+                                            task.isCompleted = if (task.isCompleted == 1) 0 else 1
+                                            homeViewModel.updateTask(task)
+                                        })
                                 }
                             }
                         }

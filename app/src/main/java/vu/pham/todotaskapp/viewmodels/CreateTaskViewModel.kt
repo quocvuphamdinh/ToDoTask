@@ -56,6 +56,7 @@ class CreateTaskViewModel(
         return ""
     }
 
+
     fun createTask(task: Task) = viewModelScope.launch {
         val validate = taskValidate(task)
         if (validate.isNotEmpty()) {
