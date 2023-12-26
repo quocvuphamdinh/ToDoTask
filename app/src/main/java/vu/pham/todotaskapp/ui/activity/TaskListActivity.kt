@@ -33,14 +33,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import vu.pham.todotaskapp.ToDoApplication
+import vu.pham.todotaskapp.alarm.AlarmItem
+import vu.pham.todotaskapp.alarm.AndroidAlarmScheduler
 import vu.pham.todotaskapp.ui.theme.ToDoTaskAppTheme
 import vu.pham.todotaskapp.ui.theme.BackgroundColor
 import vu.pham.todotaskapp.ui.theme.TextColor
 import vu.pham.todotaskapp.ui.utils.TaskItem
+import vu.pham.todotaskapp.utils.Constants
 import vu.pham.todotaskapp.utils.DateUtils
 import vu.pham.todotaskapp.utils.TaskListType
 import vu.pham.todotaskapp.viewmodels.TaskListViewModel
 import vu.pham.todotaskapp.viewmodels.viewmodelfactory.viewModelFactory
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.Date
 
 class TaskListActivity : ComponentActivity() {
@@ -51,6 +57,7 @@ class TaskListActivity : ComponentActivity() {
             }
         }
     )
+    private val scheduler by lazy { (application as ToDoApplication).scheduler }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,7 +68,14 @@ class TaskListActivity : ComponentActivity() {
                 val tasksType = bundle?.getSerializable("tasks_type") as TaskListType
                 val context = LocalContext.current
                 val activity = (context as? Activity)
-                TaskList(context, activity, title ?: "Task List", tasksType, taskListViewModel)
+                TaskList(
+                    context,
+                    activity,
+                    title ?: "Task List",
+                    tasksType,
+                    taskListViewModel,
+                    scheduler
+                )
             }
         }
     }
@@ -74,7 +88,8 @@ fun TaskList(
     activity: Activity?,
     title: String,
     taskListType: TaskListType,
-    viewModel: TaskListViewModel
+    viewModel: TaskListViewModel,
+    scheduler: AndroidAlarmScheduler
 ) {
     val tasks =
         viewModel.getTasks(taskListType).collectAsStateWithLifecycle(initialValue = emptyList())
@@ -116,20 +131,65 @@ fun TaskList(
                 LazyColumn(
                     state = rememberLazyListState(),
                     content = {
-                    listGroupBy.forEach { (year, list) ->
-                        stickyHeader {
-                            Text(
-                                text = year,
-                                fontSize = 16.sp,
-                                color = TextColor,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(BackgroundColor)
-                                    .padding(vertical = 5.dp)
-                            )
+                        listGroupBy.forEach { (year, list) ->
+                            stickyHeader {
+                                Text(
+                                    text = year,
+                                    fontSize = 16.sp,
+                                    color = TextColor,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(BackgroundColor)
+                                        .padding(vertical = 5.dp)
+                                )
+                            }
+                            items(list.size, key = { listItem ->
+                                listItem
+                            }) { i ->
+                                TaskItem(task = tasks.value[i], onClick = {
+                                    Intent(
+                                        context,
+                                        CreateTaskActivity::class.java
+                                    ).also { intent ->
+                                        val bundle = Bundle()
+                                        bundle.putParcelable("task", tasks.value[i])
+                                        intent.putExtras(bundle)
+                                        context.startActivity(intent)
+                                    }
+                                },
+                                    onTick = {
+                                        var task = tasks.value[i]
+                                        task =
+                                            if (task.isCompleted == 1) task.copy(isCompleted = 0) else task.copy(
+                                                isCompleted = 1
+                                            )
+                                        viewModel.updateTask(task)
+                                        if (task.isAlert == 1) {
+                                            val alarmItem = AlarmItem(
+                                                id = task.id!!,
+                                                time = LocalDateTime.ofInstant(
+                                                    Instant.ofEpochMilli(task.taskDate),
+                                                    ZoneId.systemDefault()
+                                                ),
+                                                title = Constants.ALARM_TITLE,
+                                                message = Constants.alarmContent(task)
+                                            )
+                                            if (task.isCompleted == 1) {
+                                                scheduler.cancel(alarmItem)
+                                            } else {
+                                                scheduler.schedule(alarmItem, task)
+                                            }
+                                        }
+                                    })
+                            }
                         }
-                        items(list.size, key = { listItem ->
+                    })
+            } else {
+                LazyColumn(
+                    state = rememberLazyListState(),
+                    content = {
+                        items(tasks.value.size, key = { listItem ->
                             listItem
                         }) { i ->
                             TaskItem(task = tasks.value[i], onClick = {
@@ -142,34 +202,14 @@ fun TaskList(
                             },
                                 onTick = {
                                     var task = tasks.value[i]
-                                    task = if (task.isCompleted == 1) task.copy(isCompleted = 0) else task.copy(isCompleted = 1)
+                                    task =
+                                        if (task.isCompleted == 1) task.copy(isCompleted = 0) else task.copy(
+                                            isCompleted = 1
+                                        )
                                     viewModel.updateTask(task)
                                 })
                         }
-                    }
-                })
-            } else {
-                LazyColumn(
-                    state = rememberLazyListState(),
-                    content = {
-                    items(tasks.value.size, key = { listItem ->
-                        listItem
-                    }) { i ->
-                        TaskItem(task = tasks.value[i], onClick = {
-                            Intent(context, CreateTaskActivity::class.java).also { intent ->
-                                val bundle = Bundle()
-                                bundle.putParcelable("task", tasks.value[i])
-                                intent.putExtras(bundle)
-                                context.startActivity(intent)
-                            }
-                        },
-                            onTick = {
-                                var task = tasks.value[i]
-                                task = if (task.isCompleted == 1) task.copy(isCompleted = 0) else task.copy(isCompleted = 1)
-                                viewModel.updateTask(task)
-                            })
-                    }
-                })
+                    })
             }
         }
     }

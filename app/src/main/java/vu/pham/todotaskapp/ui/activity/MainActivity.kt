@@ -1,9 +1,12 @@
 package vu.pham.todotaskapp.ui.activity
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -37,6 +40,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,9 +58,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.app.ActivityCompat
+import androidx.core.util.Consumer
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import vu.pham.todotaskapp.R
 import vu.pham.todotaskapp.ToDoApplication
+import vu.pham.todotaskapp.alarm.AlarmItem
+import vu.pham.todotaskapp.alarm.AndroidAlarmScheduler
 import vu.pham.todotaskapp.models.Task
 import vu.pham.todotaskapp.ui.theme.BackgroundColor
 import vu.pham.todotaskapp.ui.theme.BlackLight
@@ -70,10 +78,15 @@ import vu.pham.todotaskapp.ui.utils.TaskItem
 import vu.pham.todotaskapp.ui.utils.ToDoFAB
 import vu.pham.todotaskapp.ui.utils.ToDoProgressBar
 import vu.pham.todotaskapp.ui.utils.ToDoTextField
+import vu.pham.todotaskapp.utils.Constants
+import vu.pham.todotaskapp.utils.ServiceActions
 import vu.pham.todotaskapp.utils.TaskListType
 import vu.pham.todotaskapp.utils.width
 import vu.pham.todotaskapp.viewmodels.HomeViewModel
 import vu.pham.todotaskapp.viewmodels.viewmodelfactory.viewModelFactory
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 
 class MainActivity : ComponentActivity() {
     private val homeViewModel by viewModels<HomeViewModel>(
@@ -83,12 +96,69 @@ class MainActivity : ComponentActivity() {
             }
         }
     )
+    private val scheduler by lazy { (application as ToDoApplication).scheduler }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                0
+            )
+        }
         setContent {
             ToDoTaskAppTheme {
-                MainPage(homeViewModel)
+                if (intent?.action == ServiceActions.SHOW_TASK.toString()) {
+                    val bundle = intent?.extras
+                    val task = bundle?.let {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            it.getParcelable("task", Task::class.java)
+                        } else {
+                            it.getParcelable("task") as Task?
+                        }
+                    }
+                    task?.let {
+                        goToTaskDetail(applicationContext, it)
+                    }
+                } else if (intent?.action == ServiceActions.NOTIFY_DAILY.toString()) {
+                    Log.d("hivu", "zo daily task 1")
+                    goToTaskListPage(
+                        applicationContext,
+                        "Daily Tasks",
+                        TaskListType.DailyTasks
+                    )
+                }
+
+                DisposableEffect(Unit) {
+                    val listener = Consumer<Intent> { newIntent ->
+                        if (newIntent?.action == ServiceActions.SHOW_TASK.toString()) {
+                            val bundleNewIntent = newIntent.extras
+                            val taskNewIntent = bundleNewIntent?.let {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    it.getParcelable("task", Task::class.java)
+                                } else {
+                                    it.getParcelable("task") as Task?
+                                }
+                            }
+                            taskNewIntent?.let {
+                                goToTaskDetail(applicationContext, it)
+                            }
+                        } else if (intent?.action == ServiceActions.NOTIFY_DAILY.toString()) {
+                            Log.d("hivu", "zo daily task 2")
+                            goToTaskListPage(
+                                applicationContext,
+                                "Daily Tasks",
+                                TaskListType.DailyTasks
+                            )
+                        }
+                    }
+                    addOnNewIntentListener(listener)
+                    onDispose {
+                        removeOnNewIntentListener(listener)
+                    }
+                }
+                MainPage(homeViewModel, scheduler)
             }
         }
     }
@@ -98,7 +168,8 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun MainPage(
-    homeViewModel: HomeViewModel
+    homeViewModel: HomeViewModel,
+    scheduler: AndroidAlarmScheduler
 ) {
     val context = LocalContext.current
     val todayTasks =
@@ -213,7 +284,8 @@ fun MainPage(
                                                 onTick = {
                                                     completeTask(
                                                         tasksByName.value[index],
-                                                        homeViewModel
+                                                        homeViewModel,
+                                                        scheduler
                                                     )
                                                 })
                                         }
@@ -335,7 +407,11 @@ fun MainPage(
                                             }
                                         },
                                             onTick = {
-                                                completeTask(todayTasks.value[i], homeViewModel)
+                                                completeTask(
+                                                    todayTasks.value[i],
+                                                    homeViewModel,
+                                                    scheduler
+                                                )
                                             })
                                     }
                                 }
@@ -381,7 +457,11 @@ fun MainPage(
                                             }
                                         },
                                             onTick = {
-                                                completeTask(tomorrowTasks.value[i], homeViewModel)
+                                                completeTask(
+                                                    tomorrowTasks.value[i],
+                                                    homeViewModel,
+                                                    scheduler
+                                                )
                                             })
                                     }
                                 }
@@ -394,7 +474,7 @@ fun MainPage(
                                     .padding(top = 20.dp, bottom = 16.dp)
                             ) {
                                 Text(text = "All Task", fontSize = 20.sp, color = TextColor)
-                                if (tomorrowTasks.value.isNotEmpty()) {
+                                if (allTasks.value.isNotEmpty()) {
                                     Text(text = "See All", fontSize = 16.sp, color = PrimaryColor,
                                         modifier = Modifier.clickable {
                                             goToTaskListPage(
@@ -405,7 +485,7 @@ fun MainPage(
                                         })
                                 }
                             }
-                            if (tomorrowTasks.value.isEmpty()) {
+                            if (allTasks.value.isEmpty()) {
                                 Text(
                                     text = "You don't have any tasks",
                                     color = WhiteColor2,
@@ -422,7 +502,11 @@ fun MainPage(
                                             goToTaskDetail(context, allTasks.value[i])
                                         },
                                             onTick = {
-                                                completeTask(allTasks.value[i], homeViewModel)
+                                                completeTask(
+                                                    allTasks.value[i],
+                                                    homeViewModel,
+                                                    scheduler
+                                                )
                                             })
                                     }
                                 }
@@ -475,12 +559,28 @@ private inline fun Modifier.thenIf(condition: Boolean, block: () -> Modifier): M
     return if (condition) then(block()) else this
 }
 
-fun completeTask(completedTask: Task, viewModel: HomeViewModel) {
+fun completeTask(completedTask: Task, viewModel: HomeViewModel, scheduler: AndroidAlarmScheduler) {
     val task =
         if (completedTask.isCompleted == 1) completedTask.copy(isCompleted = 0) else completedTask.copy(
             isCompleted = 1
         )
     viewModel.updateTask(task)
+    if (task.isAlert == 1) {
+        val alarmItem = AlarmItem(
+            id = task.id!!,
+            time = LocalDateTime.ofInstant(
+                Instant.ofEpochMilli(task.taskDate),
+                ZoneId.systemDefault()
+            ),
+            title = Constants.ALARM_TITLE,
+            message = Constants.alarmContent(task)
+        )
+        if (task.isCompleted == 1) {
+            scheduler.cancel(alarmItem)
+        } else {
+            scheduler.schedule(alarmItem, task)
+        }
+    }
 }
 
 fun goToTaskDetail(context: Context, task: Task) {
@@ -491,6 +591,7 @@ fun goToTaskDetail(context: Context, task: Task) {
         val bundle = Bundle()
         bundle.putParcelable("task", task)
         it.putExtras(bundle)
+        it.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         context.startActivity(it)
     }
 }
@@ -501,6 +602,7 @@ fun goToTaskListPage(context: Context, title: String, tasksType: TaskListType) {
         bundle.putString("title", title)
         bundle.putSerializable("tasks_type", tasksType)
         it.putExtras(bundle)
+        it.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         context.startActivity(it)
     }
 }

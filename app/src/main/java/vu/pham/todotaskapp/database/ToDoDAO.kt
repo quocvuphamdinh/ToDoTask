@@ -11,7 +11,7 @@ import vu.pham.todotaskapp.models.Task
 @Dao
 interface ToDoDAO {
     @Insert
-    suspend fun insertTask(task: Task)
+    suspend fun insertTask(task: Task): Long
 
     @Update
     suspend fun updateTask(task: Task)

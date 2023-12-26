@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import vu.pham.todotaskapp.models.Task
 
 interface TaskRepository {
-    suspend fun createTask(task: Task)
+    suspend fun createTask(task: Task): Long
 
     suspend fun updateTask(task: Task)
 

@@ -2,6 +2,7 @@ package vu.pham.todotaskapp.ui.activity
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.icu.util.Calendar
 import android.os.Build
 import android.os.Bundle
@@ -22,7 +23,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -41,8 +41,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,12 +54,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.util.Consumer
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import vu.pham.todotaskapp.ToDoApplication
+import vu.pham.todotaskapp.alarm.AlarmItem
+import vu.pham.todotaskapp.alarm.AndroidAlarmScheduler
 import vu.pham.todotaskapp.models.Task
 import vu.pham.todotaskapp.ui.theme.BackgroundColor
 import vu.pham.todotaskapp.ui.theme.BlackColor
-import vu.pham.todotaskapp.ui.theme.BlackLight
 import vu.pham.todotaskapp.ui.theme.ButtonGreyColor
 import vu.pham.todotaskapp.ui.theme.GreenLight
 import vu.pham.todotaskapp.ui.theme.GreyLight
@@ -79,10 +81,13 @@ import vu.pham.todotaskapp.ui.utils.timerPickerDialog
 import vu.pham.todotaskapp.utils.AppState
 import vu.pham.todotaskapp.utils.Constants
 import vu.pham.todotaskapp.utils.DateUtils
+import vu.pham.todotaskapp.utils.ServiceActions
 import vu.pham.todotaskapp.viewmodels.CreateTaskViewModel
 import vu.pham.todotaskapp.viewmodels.viewmodelfactory.viewModelFactory
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.Date
-import kotlin.time.Duration
 
 class CreateTaskActivity : ComponentActivity() {
     private val createTaskViewModel by viewModels<CreateTaskViewModel>(
@@ -92,6 +97,7 @@ class CreateTaskActivity : ComponentActivity() {
             }
         }
     )
+    private val scheduler by lazy { (application as ToDoApplication).scheduler }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -124,6 +130,7 @@ class CreateTaskActivity : ComponentActivity() {
 
                     AppState.Error -> LoadingDialog(isShow = false)
                 }
+
                 val bundle = intent?.extras
                 val task = bundle?.let {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -132,9 +139,27 @@ class CreateTaskActivity : ComponentActivity() {
                         it.getParcelable("task") as Task?
                     }
                 }
-                CreateTask(createTaskViewModel, context, activity, task = task)
+
+                DisposableEffect(task) {
+                    val listener = Consumer<Intent> { newIntent ->
+                        if (newIntent?.action == ServiceActions.SHOW_TASK.toString()) {
+                            activity?.finish()
+                        }
+                    }
+                    addOnNewIntentListener(listener)
+                    onDispose {
+                        removeOnNewIntentListener(listener)
+                    }
+                }
+                CreateTask(createTaskViewModel, context, activity, task = task, scheduler)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+
+        Log.d("hivu", "onNewIntent2...")
     }
 }
 
@@ -144,7 +169,8 @@ fun CreateTask(
     viewModel: CreateTaskViewModel,
     context: Context,
     activity: Activity?,
-    task: Task?
+    task: Task?,
+    scheduler: AndroidAlarmScheduler
 ) {
     var taskDate by remember {
         mutableStateOf(task?.taskDate ?: System.currentTimeMillis())
@@ -191,6 +217,7 @@ fun CreateTask(
     var isShowDialog by remember {
         mutableStateOf(false)
     }
+
     if (isShowDialog) {
         ToDoDialog(
             isShow = isShowDialog,
@@ -200,6 +227,16 @@ fun CreateTask(
                 isShowDialog = false
                 if (task != null) {
                     viewModel.deleteTask(task)
+                    val alarmItem = AlarmItem(
+                        id = task.id!!,
+                        time = LocalDateTime.ofInstant(
+                            Instant.ofEpochMilli(task.taskDate),
+                            ZoneId.systemDefault()
+                        ),
+                        title = Constants.ALARM_TITLE,
+                        message = Constants.alarmContent(task)
+                    )
+                    scheduler.cancel(alarmItem)
                 }
             },
             onCancel = {
@@ -242,8 +279,6 @@ fun CreateTask(
                     modifier = Modifier.padding(bottom = 20.dp),
                     onDateSelected = { dateSelected ->
                         taskDate = dateSelected.time
-                        Log.d("hivu", taskDate.toString())
-                        Log.d("hivu", DateUtils.convertDateFormat(Date(taskDate), "yyyy-MM-dd"))
                     })
                 Text(
                     text = "Schedule", fontSize = 20.sp, color = TextColor, modifier =
@@ -257,7 +292,6 @@ fun CreateTask(
                     leadingIcon = null,
                     onTextChanged = {
                         name = it
-                        Log.d("hivu", "$name - $it")
                     },
                     isLongText = false,
                     enabled = true,
@@ -486,26 +520,47 @@ fun CreateTask(
                     ) {
                         ToDoButton(
                             onClick = {
-                                if((task.taskDate < System.currentTimeMillis()) && (DateUtils.convertDateFormat(
+                                if ((task.taskDate < System.currentTimeMillis()) && (DateUtils.convertDateFormat(
                                         Date(
                                             task.taskDate
                                         ),
                                         "yyyy-MM-dd"
-                                    ) != DateUtils.convertDateFormat(Date(System.currentTimeMillis()), "yyyy-MM-dd"))){
-                                    Toast.makeText(context, "You cannot edit the task because the task's date has passed today !", Toast.LENGTH_LONG).show()
+                                    ) != DateUtils.convertDateFormat(
+                                        Date(System.currentTimeMillis()),
+                                        "yyyy-MM-dd"
+                                    ))
+                                ) {
+                                    Toast.makeText(
+                                        context,
+                                        "You cannot edit the task because the task's date has passed today !",
+                                        Toast.LENGTH_LONG
+                                    ).show()
                                     return@ToDoButton
                                 }
-                                if(task.isCompleted == 1){
-                                    Toast.makeText(context, "You cannot edit the task because the task's completed !", Toast.LENGTH_LONG).show()
+                                if (task.isCompleted == 1) {
+                                    Toast.makeText(
+                                        context,
+                                        "You cannot edit the task because the task's completed !",
+                                        Toast.LENGTH_LONG
+                                    ).show()
                                     return@ToDoButton
                                 }
+                                val calendar = Calendar.getInstance()
+                                calendar.time = Date(taskDate)
+                                val calendar2 = Calendar.getInstance()
+                                calendar2.time = Date(startTime.timeInMillis)
+                                calendar.set(
+                                    Calendar.HOUR_OF_DAY,
+                                    calendar2.get(Calendar.HOUR_OF_DAY)
+                                )
+                                calendar.set(Calendar.MINUTE, calendar2.get(Calendar.MINUTE))
                                 val taskUpdate = Task(
                                     id = task.id,
                                     name = name,
                                     description = description,
                                     createdDate = task.createdDate,
                                     modifiedDate = System.currentTimeMillis(),
-                                    taskDate = taskDate,
+                                    taskDate = calendar.timeInMillis,
                                     startTime = startTime.timeInMillis,
                                     endTime = endTime.timeInMillis,
                                     priority = priority,
@@ -514,6 +569,20 @@ fun CreateTask(
                                     isCompleted = task.isCompleted
                                 )
                                 viewModel.updateTask(taskUpdate)
+                                val alarmItem = AlarmItem(
+                                    id = taskUpdate.id!!,
+                                    time = LocalDateTime.ofInstant(
+                                        Instant.ofEpochMilli(taskUpdate.taskDate),
+                                        ZoneId.systemDefault()
+                                    ),
+                                    title = Constants.ALARM_TITLE,
+                                    message = Constants.alarmContent(taskUpdate)
+                                )
+                                if (taskUpdate.isAlert == 1) {
+                                    scheduler.schedule(alarmItem, taskUpdate)
+                                } else {
+                                    scheduler.cancel(alarmItem)
+                                }
                             },
                             buttonModifier = Modifier.weight(10f, true),
                             textButton = "Edit Task",
@@ -538,13 +607,19 @@ fun CreateTask(
                         textColor = TextColor,
                         buttonColor = null,
                         onClick = {
+                            val calendar = Calendar.getInstance()
+                            calendar.time = Date(taskDate)
+                            val calendar2 = Calendar.getInstance()
+                            calendar2.time = Date(startTime.timeInMillis)
+                            calendar.set(Calendar.HOUR_OF_DAY, calendar2.get(Calendar.HOUR_OF_DAY))
+                            calendar.set(Calendar.MINUTE, calendar2.get(Calendar.MINUTE))
                             val taskResult = Task(
                                 id = null,
                                 name = name,
                                 description = description,
                                 createdDate = System.currentTimeMillis(),
                                 modifiedDate = null,
-                                taskDate = taskDate,
+                                taskDate = calendar.timeInMillis,
                                 startTime = startTime.timeInMillis,
                                 endTime = endTime.timeInMillis,
                                 priority = priority,
@@ -552,7 +627,7 @@ fun CreateTask(
                                 isAlert = if (isSwitchOn) 1 else 0,
                                 isCompleted = 0
                             )
-                            viewModel.createTask(taskResult)
+                            viewModel.createTask(taskResult, scheduler)
                         }
                     )
                 }
