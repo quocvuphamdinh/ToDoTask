@@ -19,7 +19,7 @@ class HomeViewModel(
         taskRepository.getTotalTodayTasksCompletedOrNotCompleted(if (isCompleted) 1 else 0)
 
     fun getDailyTasksCompletedOrNotCompleted(isCompleted: Boolean) =
-        taskRepository.getDailyTasksCompletedOrNotCompleted(if (isCompleted) 1 else 0)
+        taskRepository.getDailyTasksCompletedOrNotCompleted(if (isCompleted) 1 else 0, 0)
 
     fun getTotalDailyTasksCompletedOrNotCompleted(isCompleted: Boolean) =
         taskRepository.getTotalDailyTasksCompletedOrNotCompleted(if (isCompleted) 1 else 0)

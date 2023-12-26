@@ -16,7 +16,7 @@ interface TaskRepository {
 
     fun getTotalTodayTasksCompletedOrNotCompleted(isCompleted: Int): Flow<Int>
 
-    fun getDailyTasksCompletedOrNotCompleted(isCompleted: Int): Flow<List<Task>>
+    fun getDailyTasksCompletedOrNotCompleted(isCompleted: Int, size: Int): Flow<List<Task>>
 
     fun getTotalDailyTasksCompletedOrNotCompleted(isCompleted: Int): Flow<Int>
 

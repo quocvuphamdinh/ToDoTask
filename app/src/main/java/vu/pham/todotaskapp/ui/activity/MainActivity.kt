@@ -132,6 +132,7 @@ class MainActivity : ComponentActivity() {
 
                 DisposableEffect(Unit) {
                     val listener = Consumer<Intent> { newIntent ->
+                        Log.d("hivu", "onNewIntent")
                         if (newIntent?.action == ServiceActions.SHOW_TASK.toString()) {
                             val bundleNewIntent = newIntent.extras
                             val taskNewIntent = bundleNewIntent?.let {
@@ -144,7 +145,7 @@ class MainActivity : ComponentActivity() {
                             taskNewIntent?.let {
                                 goToTaskDetail(applicationContext, it)
                             }
-                        } else if (intent?.action == ServiceActions.NOTIFY_DAILY.toString()) {
+                        } else if (newIntent?.action == ServiceActions.NOTIFY_DAILY.toString()) {
                             Log.d("hivu", "zo daily task 2")
                             goToTaskListPage(
                                 applicationContext,

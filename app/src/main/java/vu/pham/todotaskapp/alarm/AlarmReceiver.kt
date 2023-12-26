@@ -7,11 +7,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import vu.pham.todotaskapp.models.Task
 import vu.pham.todotaskapp.service.ToDoService
 import vu.pham.todotaskapp.utils.ServiceActions
-import java.time.ZoneId
 
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
@@ -24,7 +22,6 @@ class AlarmReceiver : BroadcastReceiver() {
                     context?.startService(it)
                 }
             }
-            Log.d("hivu", "Message: Daily")
             return
         }
         val bundle = intent?.extras
@@ -38,7 +35,7 @@ class AlarmReceiver : BroadcastReceiver() {
         val alarmManager = context?.getSystemService(AlarmManager::class.java)
         alarmManager?.setExactAndAllowWhileIdle(
             AlarmManager.RTC_WAKEUP,
-            System.currentTimeMillis() + (1 * 60 * 1000),
+            System.currentTimeMillis() + AlarmManager.INTERVAL_HOUR,
             PendingIntent.getBroadcast(
                 context,
                 alarmItem?.id!!.toInt(),
@@ -65,6 +62,5 @@ class AlarmReceiver : BroadcastReceiver() {
                 context?.startService(it)
             }
         }
-        Log.d("hivu", "Message: ${alarmItem?.message}")
     }
 }

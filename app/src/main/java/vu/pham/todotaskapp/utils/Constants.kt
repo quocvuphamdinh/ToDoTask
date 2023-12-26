@@ -9,7 +9,7 @@ object Constants {
     const val LOW_PRIORITY = 3
     const val DATABASE_NAME = "ToDoTaskDatabase"
     const val ALARM_TITLE = "Don't forget to do your task"
-    fun alarmContent(task: Task) = "Task name: ${task.name}\nDate: ${
+    fun alarmContent(task: Task) = "Task: ${task.name}\nDate: ${
         DateUtils.convertDateFormat(
             Date(task.taskDate), "dd/MM/yyyy"
         )

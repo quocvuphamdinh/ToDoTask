@@ -20,8 +20,15 @@ class TaskRepositoryImpl(
     override fun getTotalTodayTasksCompletedOrNotCompleted(isCompleted: Int): Flow<Int> =
         toDoDAO.getTotalTodayTasksCompletedOrNotCompleted(isCompleted)
 
-    override fun getDailyTasksCompletedOrNotCompleted(isCompleted: Int): Flow<List<Task>> =
-        toDoDAO.getDailyTasksCompletedOrNotCompleted(isCompleted)
+    override fun getDailyTasksCompletedOrNotCompleted(
+        isCompleted: Int,
+        size: Int
+    ): Flow<List<Task>> =
+        if (size == 0) toDoDAO.getDailyTasksCompletedOrNotCompleted(isCompleted)
+        else toDoDAO.getDailyTasksCompletedOrNotCompletedWithSize(
+            isCompleted,
+            size
+        )
 
     override fun getTotalDailyTasksCompletedOrNotCompleted(isCompleted: Int): Flow<Int> =
         toDoDAO.getTotalDailyTasksCompletedOrNotCompleted(isCompleted)
@@ -30,7 +37,7 @@ class TaskRepositoryImpl(
         if (size == 0) toDoDAO.getAllDailyTasks() else toDoDAO.getDailyTasksWithSize(size)
 
     override fun getAllTasks(size: Int): Flow<List<Task>> =
-        if(size == 0) toDoDAO.getAllTasks() else toDoDAO.getAllTasksWithSize(size)
+        if (size == 0) toDoDAO.getAllTasks() else toDoDAO.getAllTasksWithSize(size)
 
     override fun getAllTasksByName(name: String): Flow<List<Task>> = toDoDAO.getAllTasksByName(name)
 }

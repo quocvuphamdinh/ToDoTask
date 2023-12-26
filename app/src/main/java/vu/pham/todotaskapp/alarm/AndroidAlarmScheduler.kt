@@ -38,8 +38,7 @@ class AndroidAlarmScheduler(
         alarmManager.setRepeating(
             AlarmManager.RTC_WAKEUP,
             time7am,
-            //AlarmManager.INTERVAL_DAY,
-            1 * 60 * 1000,
+            AlarmManager.INTERVAL_DAY,
             PendingIntent.getBroadcast(
                 context,
                 -22,

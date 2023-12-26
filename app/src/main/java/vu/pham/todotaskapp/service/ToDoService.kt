@@ -6,21 +6,17 @@ import android.app.PendingIntent.FLAG_UPDATE_CURRENT
 import android.app.Service
 import android.content.Intent
 import android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
-import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-import android.content.Intent.FLAG_ACTIVITY_NO_HISTORY
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import vu.pham.todotaskapp.R
 import vu.pham.todotaskapp.ToDoApplication
 import vu.pham.todotaskapp.alarm.AlarmItem
 import vu.pham.todotaskapp.models.Task
-import vu.pham.todotaskapp.ui.activity.CreateTaskActivity
 import vu.pham.todotaskapp.ui.activity.MainActivity
 import vu.pham.todotaskapp.utils.Constants
 import vu.pham.todotaskapp.utils.ServiceActions
@@ -62,8 +58,11 @@ class ToDoService : Service() {
             ServiceActions.NOTIFY_DAILY.toString() -> {
                 CoroutineScope(Dispatchers.IO).launch {
                     val taskRepository = (application as ToDoApplication).taskRepository
-                    val listTaskDaily = taskRepository.getDailyTasks(3)
+                    val listTaskDaily = taskRepository.getDailyTasksCompletedOrNotCompleted(0, 3)
                     listTaskDaily.collect {
+                        if(it.isEmpty()){
+                            return@collect
+                        }
                         val notificationManager =
                             getSystemService(NOTIFICATION_SERVICE) as NotificationManager
                         val notification =
@@ -145,6 +144,7 @@ class ToDoService : Service() {
                     bundle.putParcelable("task", task)
                     it.putExtras(bundle)
                     it.action = ServiceActions.SHOW_TASK.toString()
+                    it.flags = FLAG_ACTIVITY_CLEAR_TOP
                 }, FLAG_UPDATE_CURRENT
         )
     }
@@ -159,6 +159,7 @@ class ToDoService : Service() {
             )
                 .also {
                     it.action = ServiceActions.NOTIFY_DAILY.toString()
+                    it.flags = FLAG_ACTIVITY_CLEAR_TOP
                 }, FLAG_UPDATE_CURRENT
         )
     }

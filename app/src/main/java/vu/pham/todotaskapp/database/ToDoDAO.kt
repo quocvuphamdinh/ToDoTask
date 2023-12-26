@@ -31,6 +31,9 @@ interface ToDoDAO {
     @Query("SELECT * FROM task WHERE isCompleted = :isCompleted AND isDailyTask = 1")
     fun getDailyTasksCompletedOrNotCompleted(isCompleted: Int): Flow<List<Task>>
 
+    @Query("SELECT * FROM task WHERE isCompleted = :isCompleted AND isDailyTask = 1 LIMIT :size")
+    fun getDailyTasksCompletedOrNotCompletedWithSize(isCompleted: Int, size: Int): Flow<List<Task>>
+
     @Query("SELECT COUNT(*) FROM task WHERE isCompleted = :isCompleted AND isDailyTask = 1")
     fun getTotalDailyTasksCompletedOrNotCompleted(isCompleted: Int): Flow<Int>
 
