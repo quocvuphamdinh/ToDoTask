@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.icu.util.Calendar
 import android.os.Bundle
 import vu.pham.todotaskapp.models.Task
 import vu.pham.todotaskapp.utils.ServiceActions
@@ -34,18 +35,30 @@ class AndroidAlarmScheduler(
         val intentDaily = Intent(context, AlarmReceiver::class.java).apply {
             action = ServiceActions.NOTIFY_DAILY.toString()
         }
-        val time7am = 1703548800L
-        alarmManager.setRepeating(
-            AlarmManager.RTC_WAKEUP,
-            time7am,
-            AlarmManager.INTERVAL_DAY,
-            PendingIntent.getBroadcast(
-                context,
-                -22,
-                intentDaily,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        val isAlarmDailyExists = PendingIntent.getBroadcast(
+            context,
+            -22,
+            intentDaily,
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+        ) != null
+        if (!isAlarmDailyExists) {
+            val calendar = Calendar.getInstance()
+            calendar.set(Calendar.HOUR_OF_DAY, 7)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val time7am = calendar.timeInMillis
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                time7am,
+                PendingIntent.getBroadcast(
+                    context,
+                    -22,
+                    intentDaily,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
             )
-        )
+        }
     }
 
     override fun cancel(item: AlarmItem) {

@@ -6,7 +6,6 @@ import android.content.Intent
 import android.icu.util.Calendar
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -154,12 +153,6 @@ class CreateTaskActivity : ComponentActivity() {
                 CreateTask(createTaskViewModel, context, activity, task = task, scheduler)
             }
         }
-    }
-
-    override fun onNewIntent(intent: Intent?) {
-        super.onNewIntent(intent)
-
-        Log.d("hivu", "onNewIntent2...")
     }
 }
 
@@ -630,10 +623,6 @@ fun CreateTask(
                                 isDailyTask = if (isDailyTask) 1 else 0,
                                 isAlert = if (isSwitchOn) 1 else 0,
                                 isCompleted = 0
-                            )
-                            Log.d(
-                                "hivu",
-                                "Start time: ${startTime.timeInMillis}\nEnd time: ${endTime.timeInMillis}"
                             )
                             viewModel.createTask(taskResult, scheduler)
                         }

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">ToDoTaskApp</string>
+    <string name="app_name">ToDoTaskByVuPham</string>
     <string name="title_activity_create_task">CreateTaskActivity</string>
     <string name="title_activity_task_list">TaskListActivity</string>
 </resources>

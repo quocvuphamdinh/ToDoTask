@@ -9,9 +9,12 @@ import android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.cancellable
 import kotlinx.coroutines.launch
 import vu.pham.todotaskapp.R
 import vu.pham.todotaskapp.ToDoApplication
@@ -56,7 +59,7 @@ class ToDoService : Service() {
             }
 
             ServiceActions.NOTIFY_DAILY.toString() -> {
-                CoroutineScope(Dispatchers.IO).launch {
+               CoroutineScope(Dispatchers.IO).launch {
                     val taskRepository = (application as ToDoApplication).taskRepository
                     val listTaskDaily = taskRepository.getDailyTasksCompletedOrNotCompleted(0, 3)
                     listTaskDaily.collect {
@@ -83,6 +86,7 @@ class ToDoService : Service() {
                         } else {
                             notificationManager.notify(-22, notification)
                         }
+                        cancel()
                     }
                 }
             }

@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -59,6 +58,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.util.Consumer
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import vu.pham.todotaskapp.R
@@ -99,6 +99,9 @@ class MainActivity : ComponentActivity() {
     private val scheduler by lazy { (application as ToDoApplication).scheduler }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen().apply {
+            this.setKeepOnScreenCondition { homeViewModel.isLoading.value }
+        }
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ActivityCompat.requestPermissions(
@@ -122,7 +125,6 @@ class MainActivity : ComponentActivity() {
                         goToTaskDetail(applicationContext, it)
                     }
                 } else if (intent?.action == ServiceActions.NOTIFY_DAILY.toString()) {
-                    Log.d("hivu", "zo daily task 1")
                     goToTaskListPage(
                         applicationContext,
                         "Daily Tasks",
@@ -132,7 +134,6 @@ class MainActivity : ComponentActivity() {
 
                 DisposableEffect(Unit) {
                     val listener = Consumer<Intent> { newIntent ->
-                        Log.d("hivu", "onNewIntent")
                         if (newIntent?.action == ServiceActions.SHOW_TASK.toString()) {
                             val bundleNewIntent = newIntent.extras
                             val taskNewIntent = bundleNewIntent?.let {
@@ -146,7 +147,6 @@ class MainActivity : ComponentActivity() {
                                 goToTaskDetail(applicationContext, it)
                             }
                         } else if (newIntent?.action == ServiceActions.NOTIFY_DAILY.toString()) {
-                            Log.d("hivu", "zo daily task 2")
                             goToTaskListPage(
                                 applicationContext,
                                 "Daily Tasks",

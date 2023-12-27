@@ -3,6 +3,7 @@ package vu.pham.todotaskapp.viewmodels
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -12,6 +13,16 @@ import vu.pham.todotaskapp.repositories.TaskRepository
 class HomeViewModel(
     private val taskRepository: TaskRepository
 ) : ViewModel() {
+
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading = _isLoading.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            delay(3000)
+            _isLoading.value = false
+        }
+    }
 
     fun getTodayTasks() = taskRepository.getTodayTasks(3)
 
