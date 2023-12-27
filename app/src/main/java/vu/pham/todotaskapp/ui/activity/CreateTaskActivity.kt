@@ -191,6 +191,7 @@ fun CreateTask(
     var startTime by remember {
         val calendar = Calendar.getInstance()
         calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
         task?.let {
             calendar.time = Date(it.startTime)
         }
@@ -199,6 +200,7 @@ fun CreateTask(
     var endTime by remember {
         val calendar = Calendar.getInstance()
         calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
         task?.let {
             calendar.time = Date(it.endTime)
         }
@@ -335,6 +337,7 @@ fun CreateTask(
                                             calendar.set(Calendar.HOUR_OF_DAY, hour)
                                             calendar.set(Calendar.MINUTE, minute)
                                             calendar.set(Calendar.SECOND, 0)
+                                            calendar.set(Calendar.MILLISECOND, 0)
                                             startTime = calendar
                                         }).show()
                                 },
@@ -377,6 +380,7 @@ fun CreateTask(
                                             calendar.set(Calendar.HOUR_OF_DAY, hour)
                                             calendar.set(Calendar.MINUTE, minute)
                                             calendar.set(Calendar.SECOND, 0)
+                                            calendar.set(Calendar.MILLISECOND, 0)
                                             endTime = calendar
                                         }).show()
                                 },
@@ -520,6 +524,14 @@ fun CreateTask(
                     ) {
                         ToDoButton(
                             onClick = {
+                                if (task.isCompleted == 1) {
+                                    Toast.makeText(
+                                        context,
+                                        "You cannot edit the task because the task's completed !",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                    return@ToDoButton
+                                }
                                 if ((task.taskDate < System.currentTimeMillis()) && (DateUtils.convertDateFormat(
                                         Date(
                                             task.taskDate
@@ -533,14 +545,6 @@ fun CreateTask(
                                     Toast.makeText(
                                         context,
                                         "You cannot edit the task because the task's date has passed today !",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                    return@ToDoButton
-                                }
-                                if (task.isCompleted == 1) {
-                                    Toast.makeText(
-                                        context,
-                                        "You cannot edit the task because the task's completed !",
                                         Toast.LENGTH_LONG
                                     ).show()
                                     return@ToDoButton
@@ -626,6 +630,10 @@ fun CreateTask(
                                 isDailyTask = if (isDailyTask) 1 else 0,
                                 isAlert = if (isSwitchOn) 1 else 0,
                                 isCompleted = 0
+                            )
+                            Log.d(
+                                "hivu",
+                                "Start time: ${startTime.timeInMillis}\nEnd time: ${endTime.timeInMillis}"
                             )
                             viewModel.createTask(taskResult, scheduler)
                         }
